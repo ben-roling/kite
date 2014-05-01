@@ -20,6 +20,7 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetReader;
 import org.kitesdk.data.DatasetWriter;
+import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.RefinableView;
 import javax.annotation.concurrent.Immutable;
 import org.slf4j.Logger;
@@ -95,6 +96,10 @@ public abstract class AbstractDataset<E> implements Dataset<E>, RefinableView<E>
   public boolean deleteAll() {
     throw new UnsupportedOperationException(
         "This Dataset does not support bulk deletion");
+  }
+  
+  public PartitionKey toPartitionKey(String partitionKey) {
+    return null;
   }
 
 }

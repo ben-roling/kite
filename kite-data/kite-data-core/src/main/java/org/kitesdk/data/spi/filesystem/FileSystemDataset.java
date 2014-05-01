@@ -15,27 +15,34 @@
  */
 package org.kitesdk.data.spi.filesystem;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import java.util.Iterator;
 import java.util.Set;
+
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.DatasetRepositoryException;
+import org.kitesdk.data.Datasets;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.AbstractDatasetRepository;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.PartitionListener;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -412,4 +420,15 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     }
   }
 
+  @Override
+  public String getUri() {
+    return Accessor.getDefault().getUri(this, partitionKey.getValues().toString());
+  }
+  
+  @Override
+  public PartitionKey toPartitionKey(String partitionKey) {
+    Object[] keyValues = Iterables.toArray(Splitter.on(",").split(
+        partitionKey.substring(1, partitionKey.length()-1)), Object.class);
+    return descriptor.getPartitionStrategy().partitionKey(keyValues);
+  }
 }

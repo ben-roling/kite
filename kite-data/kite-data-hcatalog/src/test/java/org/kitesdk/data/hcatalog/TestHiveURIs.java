@@ -21,15 +21,19 @@ import org.kitesdk.data.spi.filesystem.TestFileSystemURIs;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.After;
+import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetRepositories;
 import org.kitesdk.data.DatasetRepository;
+import org.kitesdk.data.Datasets;
 import java.net.URI;
 import junit.framework.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.kitesdk.data.hcatalog.impl.HCatalog;
 import org.kitesdk.data.spi.MetadataProvider;
+
+import static org.kitesdk.data.spi.filesystem.DatasetTestUtilities.*;
 
 /**
  * This verifies that the URI system returns correctly configured repositories.
@@ -195,5 +199,23 @@ public class TestHiveURIs extends TestFileSystemURIs {
     Assert.assertTrue("Repo should be using a HCatalogManagedMetadataProvider",
         provider instanceof HCatalogExternalMetadataProvider);
     Assert.assertEquals("Repository URI", repoUri, repo.getUri());
+  }
+  
+  @Test
+  public void testHiveDatasetUriWhenDatasetDoesNotExist() throws Exception {
+    URI repositoryUri = new URI("repo:hive");
+
+    Dataset<Object> ds = Datasets.load(repositoryUri + "?dataset-name=test", false);
+    Assert.assertNull(ds);
+  }
+  
+  @Test
+  public void testHiveDatasetUriWhenDatasetDoesExist() throws Exception {
+    URI repositoryUri = new URI("repo:hive");
+    DatasetRepository repo = DatasetRepositories.open(repositoryUri);
+    repo.create("test", new DatasetDescriptor.Builder().schema(USER_SCHEMA).build());
+
+    Dataset<Object> ds = Datasets.load(repositoryUri + "?dataset-name=test", false);
+    Assert.assertEquals("test", ds.getName());
   }
 }

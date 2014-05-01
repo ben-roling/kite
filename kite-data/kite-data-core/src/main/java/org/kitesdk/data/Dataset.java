@@ -97,4 +97,12 @@ public interface Dataset<E> extends RefinableView<E> {
    */
   Iterable<Dataset<E>> getPartitions();
 
+  /**
+   * Gets the URI identifying the dataset.  Datasets outside of a {@link DatasetRepository} have no URI.
+   * 
+   * @return the URI of the dataset or null if the dataset cannot be identified by a URI.
+   * @throws DatasetException
+   */
+  String getUri();
+
 }

@@ -66,4 +66,9 @@ final class AccessorImpl extends Accessor {
   public DatasetException providerExceptionFor(DatasetException e) {
     return new MetadataProviderException(e);
   }
+  
+  @Override
+  public <E> String getUri(Dataset<E> dataset, String partitionKey) {
+    return Datasets.getUri(dataset, partitionKey);
+  }
 }

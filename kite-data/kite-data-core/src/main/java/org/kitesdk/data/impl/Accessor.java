@@ -15,6 +15,7 @@
  */
 package org.kitesdk.data.impl;
 
+import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.Format;
@@ -72,4 +73,6 @@ public abstract class Accessor {
   public abstract void registerDatasetRepository(URIPattern pattern, OptionBuilder<DatasetRepository> builder);
 
   public abstract DatasetException providerExceptionFor(DatasetException e);
+  
+  public abstract <E> String getUri(Dataset<E> dataset, String partitionKey);
 }

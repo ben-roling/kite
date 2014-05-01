@@ -24,6 +24,7 @@ import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.RandomAccessDataset;
 import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.hbase.impl.Dao;
+import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
 
 class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E> {
@@ -117,5 +118,10 @@ class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>
   @Override
   public InputFormat<E, Void> getDelegateInputFormat() {
     return new HBaseDatasetKeyInputFormat<E>(this);
+  }
+
+  @Override
+  public String getUri() {
+    return Accessor.getDefault().getUri(this, null);
   }
 }

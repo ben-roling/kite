@@ -15,26 +15,53 @@
  */
 package org.kitesdk.data.spi.filesystem;
 
+import org.kitesdk.data.Dataset;
+import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetRepositories;
 import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.DatasetRepositoryException;
+import org.kitesdk.data.Datasets;
 import org.kitesdk.data.MiniDFSTest;
+import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.MetadataProvider;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.junit.BeforeClass;
+
+import com.google.common.io.Files;
+
+import static org.kitesdk.data.spi.filesystem.DatasetTestUtilities.*;
 
 public class TestFileSystemURIs extends MiniDFSTest {
 
   @BeforeClass
   public static void loadImpl() {
     new Loader().load();
+  }
+  
+  private FileSystem fileSystem = getFS();
+  private Path testDirectory;
+  
+  @Before
+  public void setUp() throws IOException {
+    testDirectory = fileSystem.makeQualified(
+        new Path(Files.createTempDir().getAbsolutePath()));
+  }
+
+  @After
+  public void tearDown() throws IOException {
+    fileSystem.delete(testDirectory, true);
   }
 
   @SuppressWarnings("deprecation")
@@ -107,6 +134,82 @@ public class TestFileSystemURIs extends MiniDFSTest {
     Assert.assertEquals("Root directory should be the correct qualified path",
         expected, fsProvider.getRootDirectory());
     Assert.assertEquals("Repository URI", repositoryUri, repository.getUri());
+  }
+  
+  @Test
+  public void testLoadDatasetDoesntExist() {
+    Dataset<Object> ds = Datasets.load("repo:" + getFS().makeQualified(testDirectory) + "?dataset-name=test", false);
+    Assert.assertNull(ds);
+  }
+  
+  @Test
+  public void testLoadDatasetExists() {
+    String repoUri = "repo:" + getFS().makeQualified(testDirectory);
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    repo.create("test", new DatasetDescriptor.Builder().schema(DatasetTestUtilities.USER_SCHEMA).build());
+    
+    Dataset<Object> ds = Datasets.load(repoUri + "?dataset-name=test", false);
+    Assert.assertEquals("test", ds.getName());
+    Assert.assertEquals(USER_SCHEMA, ds.getDescriptor().getSchema());
+  }
+  
+  @Test
+  public void testLoadPartitionDoesntExistNoAutoCreate() {
+    String repoUri = "repo:" + getFS().makeQualified(testDirectory);
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    repo.create(
+        "test",
+        new DatasetDescriptor.Builder()
+            .schema(DatasetTestUtilities.USER_SCHEMA)
+            .partitionStrategy(
+                new PartitionStrategy.Builder().hash("username", 5)
+                    .hash("email", 10).build()).build());
+    
+    Dataset<Object> ds = Datasets.load(repoUri + "?dataset-name=test&partition-key=[1,6]", false);
+    Assert.assertNull(ds);
+  }
+  
+  @Test
+  public void testLoadPartitionDoesntExistAutoCreate() {
+    String repoUri = "repo:" + getFS().makeQualified(testDirectory);
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    repo.create(
+        "test",
+        new DatasetDescriptor.Builder()
+            .schema(DatasetTestUtilities.USER_SCHEMA)
+            .partitionStrategy(
+                new PartitionStrategy.Builder().hash("username", 5)
+                    .hash("email", 10).build()).build());
+    
+    Dataset<Object> ds = Datasets.load(repoUri + "?dataset-name=test&partition-key=[1,6]", true);
+    Assert.assertEquals("test", ds.getName());
+    Assert.assertEquals(USER_SCHEMA, ds.getDescriptor().getSchema());
+    
+    // its a leaf partition so the partition itself is not partitioned
+    Assert.assertFalse(ds.getDescriptor().isPartitioned());
+  }
+  
+  @Test
+  public void testLoadPartitionExists() {
+    String repoUri = "repo:" + getFS().makeQualified(testDirectory);
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash("username", 5)
+        .hash("email", 10).build();
+    Dataset<Object> ds = repo.create(
+        "test",
+        new DatasetDescriptor.Builder()
+            .schema(DatasetTestUtilities.USER_SCHEMA)
+            .partitionStrategy(
+                partitionStrategy).build());
+    
+    ds.getPartition(partitionStrategy.partitionKey(1, 6), true);
+    Dataset<Object> partition = Datasets.load(repoUri + "?dataset-name=test&partition-key=[1,6]", false);
+    
+    Assert.assertEquals("test", partition.getName());
+    Assert.assertEquals(USER_SCHEMA, partition.getDescriptor().getSchema());
+    
+    // its a leaf partition so the partition itself is not partitioned
+    Assert.assertFalse(partition.getDescriptor().isPartitioned());
   }
 
 }

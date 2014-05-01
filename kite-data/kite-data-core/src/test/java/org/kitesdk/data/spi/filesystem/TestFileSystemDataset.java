@@ -20,6 +20,8 @@ import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetReader;
+import org.kitesdk.data.DatasetRepositories;
+import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.DatasetRepositoryException;
 import org.kitesdk.data.Format;
 import org.kitesdk.data.Formats;
@@ -458,6 +460,47 @@ public class TestFileSystemDataset extends MiniDFSTest {
     Assert.assertEquals(6, dirPaths.size());
 
     Assert.assertTrue("dirIterator should yield absolute paths.", dirPaths.get(0).isAbsolute());
+  }
+  
+  @Test
+  public void testDatasetUriWithoutRepository() throws IOException {
+    FileSystemDataset<Record> ds = new FileSystemDataset.Builder()
+        .name("test")
+        .configuration(getConfiguration())
+        .descriptor(
+            new DatasetDescriptor.Builder().schemaUri(USER_SCHEMA_URL)
+                .format(format).location(testDirectory).build()).build();
+    
+    Assert.assertNull(ds.getUri());
+  }
+  
+  @Test
+  public void testDatasetUriWithoutPartition() throws IOException {
+    String repoUri = "repo:file://" + Files.createTempDir().getAbsolutePath();
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    
+    Dataset<Record> ds = repo.create("test", new DatasetDescriptor.Builder().schemaUri(USER_SCHEMA_URL)
+                .format(format).build());
+    
+    Assert.assertEquals(repoUri + "?dataset-name=test", ds.getUri());
+  }
+  
+  @Test
+  public void testDatasetUriWithPartition() throws IOException {
+    String repoUri = "repo:file://" + Files.createTempDir().getAbsolutePath();
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
+        "username", 2).build();
+
+    Dataset<Record> ds = repo.create("partitioned-users",
+        new DatasetDescriptor.Builder().schema(USER_SCHEMA).format(format)
+            .partitionStrategy(partitionStrategy)
+            .build());
+
+      Dataset<Record> partition = ds.getPartition(partitionStrategy.partitionKey(1), true);
+    
+    Assert.assertEquals(repoUri + "?dataset-name=partitioned-users&partition-key=[1]", partition.getUri());
   }
 
   @SuppressWarnings("deprecation")
