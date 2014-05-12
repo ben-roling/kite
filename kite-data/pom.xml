@@ -27,7 +27,6 @@
     <module>kite-data-crunch</module>
     <module>kite-data-flume</module>
     <module>kite-data-hcatalog</module>
-    <module>kite-data-hbase</module>
     <module>kite-data-mapreduce</module>
   </modules>
 
@@ -61,7 +60,6 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
             <compilerArgs>
-              <arg>-Werror</arg> <!-- fail on warnings -->
               <arg>-Xlint:-options</arg> <!-- ignore cross-compilation warning -->
               <arg>-Xlint:unchecked</arg>
             </compilerArgs>

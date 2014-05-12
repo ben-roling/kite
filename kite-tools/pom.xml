@@ -92,7 +92,6 @@
                   <include>com.twitter:parquet-format</include>
                   <include>net.sf.opencsv:opencsv</include>
                   <include>org.apache.commons:commons-jexl</include>
-                  <include>org.kitesdk:kite-data-hbase</include>
                   <include>org.kitesdk:kite-data-hcatalog</include>
                   <include>com.twitter:parquet-hive</include>
                   <include>org.kitesdk:kite-data-mapreduce</include>
@@ -230,12 +229,6 @@
 
     <dependency>
       <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-hbase</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
       <artifactId>kite-data-mapreduce</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -332,14 +325,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>${artifact.hbase-deps}</artifactId>
-      <type>pom</type>
-      <scope>provided</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
       <scope>provided</scope>
@@ -431,22 +416,7 @@
 
     <dependency>
       <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-hbase</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
       <artifactId>${artifact.hadoop-test-deps}</artifactId>
-      <type>pom</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>${artifact.hbase-test-deps}</artifactId>
       <type>pom</type>
       <scope>test</scope>
     </dependency>

@@ -92,12 +92,6 @@
       <version>0.13.1-SNAPSHOT</version>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-hbase</artifactId>
-      <version>0.13.1-SNAPSHOT</version>
-      <optional>true</optional>
-    </dependency>
 
     <!-- Hadoop and HBase -->
     <dependency>
@@ -112,12 +106,6 @@
           <artifactId>jasper-runtime</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>${artifact.hbase-deps}</artifactId>
-      <type>pom</type>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.kitesdk</groupId>
@@ -161,13 +149,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>kite-data-hbase</artifactId>
-      <version>0.13.1-SNAPSHOT</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>org.kitesdk</groupId>
@@ -176,12 +157,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.kitesdk</groupId>
-      <artifactId>${artifact.hbase-test-deps}</artifactId>
-      <type>pom</type>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
 </project>

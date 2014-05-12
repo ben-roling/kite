@@ -25,11 +25,9 @@
   <modules>
     <module>kite-hadoop-dependencies</module>
     <module>kite-hadoop-compatibility</module>
-    <module>kite-hbase-dependencies</module>
     <module>kite-data</module>
     <module>kite-maven-plugin</module>
     <module>kite-tools</module>
-    <module>kite-morphlines</module>
   </modules>
 
   <name>Kite Development Kit</name>
@@ -114,7 +112,7 @@
 
     <previous.project.version>0.12.0</previous.project.version> <!-- used by jdiff, semver rule -->
 
-    <cdh.version>4.4.0</cdh.version>
+    <cdh.version>5.0.1</cdh.version>
 
     <!-- artifacts that depend on profiles -->
     <artifact.hadoop-deps>kite-hadoop-dependencies</artifact.hadoop-deps>
@@ -133,14 +131,14 @@
     <vers.findbugs.jsr305>2.0.1</vers.findbugs.jsr305>
     <vers.flume>1.4.0-cdh${cdh.version}</vers.flume>
     <vers.guava>11.0.2</vers.guava>
-    <vers.hadoop>2.0.0-cdh${cdh.version}</vers.hadoop>
-    <vers.hadoop-mr1>2.0.0-mr1-cdh${cdh.version}</vers.hadoop-mr1>
+    <vers.hadoop>2.3.0-cdh${cdh.version}</vers.hadoop>
+    <vers.hadoop-mr1>2.3.0-mr1-cdh${cdh.version}</vers.hadoop-mr1>
     <vers.hadoop1>1.2.1</vers.hadoop1>
     <vers.hbase>0.94.6-cdh${cdh.version}</vers.hbase>
     <vers.hbase1>0.94.6</vers.hbase1>
     <vers.hbase2>0.96.1.1-hadoop2</vers.hbase2>
-    <vers.hcatalog>0.5.0-cdh${cdh.version}</vers.hcatalog>
-    <vers.hive>0.10.0-cdh${cdh.version}</vers.hive>
+    <vers.hcatalog>0.11.0-cdh5.0.0-beta-1</vers.hcatalog>
+    <vers.hive>0.12.0-cdh${cdh.version}</vers.hive>
     <vers.jetty>8.1.14.v20131031</vers.jetty>
     <vers.jexl>2.1.1</vers.jexl>
     <vers.compress>1.4.1</vers.compress>
@@ -149,7 +147,7 @@
     <vers.maven>2.0.6</vers.maven>
     <vers.mockito>1.9.5</vers.mockito>
     <vers.mojo-executor>1.5</vers.mojo-executor>
-    <vers.oozie>3.3.2-cdh${cdh.version}</vers.oozie>
+    <vers.oozie>4.0.0-cdh${cdh.version}</vers.oozie>
     <vers.parquet>1.2.5</vers.parquet>
     <vers.plexus-utils>3.0</vers.plexus-utils>
     <vers.rat>0.9</vers.rat>
