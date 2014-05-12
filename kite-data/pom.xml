@@ -28,6 +28,7 @@
     <module>kite-data-flume</module>
     <module>kite-data-hcatalog</module>
     <module>kite-data-mapreduce</module>
+    <module>kite-data-oozie</module>
   </modules>
 
   <parent>
