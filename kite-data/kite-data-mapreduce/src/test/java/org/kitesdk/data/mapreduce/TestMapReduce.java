@@ -16,13 +16,18 @@
 package org.kitesdk.data.mapreduce;
 
 import com.google.common.io.Files;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
@@ -45,6 +50,7 @@ import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.Format;
 import org.kitesdk.data.Formats;
 import org.kitesdk.data.DatasetWriter;
+import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.filesystem.FileSystemDatasetRepository;
 
 @RunWith(Parameterized.class)
@@ -73,7 +79,8 @@ public class TestMapReduce {
   public static final Schema STATS_SCHEMA =
       new Schema.Parser().parse("{\"name\":\"stats\",\"type\":\"record\","
           + "\"fields\":[{\"name\":\"count\",\"type\":\"int\"},"
-          + "{\"name\":\"name\",\"type\":\"string\"}]}");
+          + "{\"name\":\"name\",\"type\":\"string\"},"
+          + "{\"name\":\"partitionVal\",\"type\":\"string\", \"default\":\"\"}]}");
 
   private DatasetRepository repo;
 
@@ -115,6 +122,7 @@ public class TestMapReduce {
       }
       record.put("name", new Utf8(line.toString()));
       record.put("count", new Integer(sum));
+      record.put("partitionVal", "");
       context.write(record, null);
     }
   }
@@ -173,6 +181,137 @@ public class TestMapReduce {
     Assert.assertEquals(2, counts.get("banana").intValue());
     Assert.assertEquals(1, counts.get("carrot").intValue());
 
+  }
+  
+  @Test
+  @SuppressWarnings("deprecation")
+  public void testIdentityPartitionFields() throws Exception {
+    Job job = new Job();
+
+    Dataset<GenericData.Record> inputDataset = repo.create("in",
+        new DatasetDescriptor.Builder()
+            .property("kite.allow.csv", "true")
+            .schema(STRING_SCHEMA)
+            .format(format)
+            .build());
+    DatasetWriter<GenericData.Record> writer = inputDataset.newWriter();
+    writer.open();
+    writer.write(newStringRecord("apple"));
+    writer.write(newStringRecord("banana"));
+    writer.write(newStringRecord("banana"));
+    writer.write(newStringRecord("carrot"));
+    writer.write(newStringRecord("apple"));
+    writer.write(newStringRecord("apple"));
+    writer.close();
+
+    job.setInputFormatClass(DatasetKeyInputFormat.class);
+    DatasetKeyInputFormat.setRepositoryUri(job, repo.getUri());
+    DatasetKeyInputFormat.setDatasetName(job, inputDataset.getName());
+
+    job.setMapperClass(LineCountMapper.class);
+    job.setMapOutputKeyClass(Text.class);
+    job.setMapOutputValueClass(IntWritable.class);
+
+    job.setReducerClass(GenericStatsReducer.class);
+
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().identity("partitionVal",
+        "partitionValCopy", String.class, 1000).build();
+    
+    Dataset<GenericData.Record> outputDataset = repo.create("out",
+        new DatasetDescriptor.Builder()
+            .property("kite.allow.csv", "true")
+            .schema(STATS_SCHEMA)
+            .format(format)
+            .partitionStrategy(
+                partitionStrategy)
+            .build());
+
+    job.setOutputFormatClass(DatasetKeyOutputFormat.class);
+    Dataset<Record> outputPartition = outputDataset.getPartition(partitionStrategy.partitionKey("myPartition"), true);
+    DatasetKeyOutputFormat.setDatasetUri(job, outputPartition.getUri());
+
+    Assert.assertTrue(job.waitForCompletion(true));
+    
+    DatasetReader<GenericData.Record> reader = outputPartition.newReader();
+    reader.open();
+    Map<String, Integer> counts = new HashMap<String, Integer>();
+    Set<String> partitionValues = new HashSet<String>();
+    for (GenericData.Record record : reader) {
+      counts.put(record.get("name").toString(), (Integer) record.get("count"));
+      partitionValues.add(record.get("partitionVal").toString());
+    }
+    reader.close();
+
+    Assert.assertEquals(3, counts.get("apple").intValue());
+    Assert.assertEquals(2, counts.get("banana").intValue());
+    Assert.assertEquals(1, counts.get("carrot").intValue());
+    Assert.assertEquals(1, partitionValues.size());
+    Assert.assertEquals("myPartition", partitionValues.iterator().next());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  public void testIdentityPartitionFields() throws Exception {
+    Job job = new Job();
+
+    Dataset<GenericData.Record> inputDataset = repo.create("in",
+        new DatasetDescriptor.Builder()
+            .property("kite.allow.csv", "true")
+            .schema(STRING_SCHEMA)
+            .format(format)
+            .build());
+    DatasetWriter<GenericData.Record> writer = inputDataset.newWriter();
+    writer.open();
+    writer.write(newStringRecord("apple"));
+    writer.write(newStringRecord("banana"));
+    writer.write(newStringRecord("banana"));
+    writer.write(newStringRecord("carrot"));
+    writer.write(newStringRecord("apple"));
+    writer.write(newStringRecord("apple"));
+    writer.close();
+
+    job.setInputFormatClass(DatasetKeyInputFormat.class);
+    DatasetKeyInputFormat.setDatasetUri(job, inputDataset.getUri());
+
+    job.setMapperClass(LineCountMapper.class);
+    job.setMapOutputKeyClass(Text.class);
+    job.setMapOutputValueClass(IntWritable.class);
+
+    job.setReducerClass(GenericStatsReducer.class);
+
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().identity("partitionVal",
+        "partitionValCopy", String.class, 1000).build();
+
+    Dataset<GenericData.Record> outputDataset = repo.create("out",
+        new DatasetDescriptor.Builder()
+            .property("kite.allow.csv", "true")
+            .schema(STATS_SCHEMA)
+            .format(format)
+            .partitionStrategy(
+                partitionStrategy)
+            .build());
+
+    job.setOutputFormatClass(DatasetKeyOutputFormat.class);
+    Dataset<Record> outputPartition = outputDataset.getPartition(partitionStrategy.partitionKey("myPartition"), true);
+    DatasetKeyOutputFormat.setDatasetUri(job, outputPartition.getUri());
+
+    Assert.assertTrue(job.waitForCompletion(true));
+
+    DatasetReader<GenericData.Record> reader = outputPartition.newReader();
+    reader.open();
+    Map<String, Integer> counts = new HashMap<String, Integer>();
+    Set<String> partitionValues = new HashSet<String>();
+    for (GenericData.Record record : reader) {
+      counts.put(record.get("name").toString(), (Integer) record.get("count"));
+      partitionValues.add(record.get("partitionVal").toString());
+    }
+    reader.close();
+
+    Assert.assertEquals(3, counts.get("apple").intValue());
+    Assert.assertEquals(2, counts.get("banana").intValue());
+    Assert.assertEquals(1, counts.get("carrot").intValue());
+    Assert.assertEquals(1, partitionValues.size());
+    Assert.assertEquals("myPartition", partitionValues.iterator().next());
   }
 
   private GenericData.Record newStringRecord(String text) {

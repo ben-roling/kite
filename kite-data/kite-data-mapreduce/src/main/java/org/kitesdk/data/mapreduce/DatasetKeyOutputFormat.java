@@ -19,7 +19,12 @@ import com.google.common.annotations.Beta;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -39,7 +44,9 @@ import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.Datasets.LoadFlag;
 import org.kitesdk.data.spi.AbstractDataset;
 import org.kitesdk.data.spi.AbstractDatasetRepository;
+import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
+import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
 
 /**
  * A MapReduce {@code OutputFormat} for writing to a {@link Dataset}.
@@ -60,15 +67,29 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   static class DatasetRecordWriter<E> extends RecordWriter<E, Void> {
 
-    private DatasetWriter<E> datasetWriter;
+    private final DatasetWriter<E> datasetWriter;
+    private final Map<String, Object> partitionFieldValues;
 
-    public DatasetRecordWriter(Dataset<E> dataset) {
+    public DatasetRecordWriter(Dataset<E> dataset, Map<String, Object> partitionFieldValues) {
       this.datasetWriter = dataset.newWriter();
       this.datasetWriter.open();
+      this.partitionFieldValues = partitionFieldValues;
     }
 
     @Override
     public void write(E key, Void v) {
+      /**
+       * TODO this feature of auto-populating partition fields could use at least a couple of enhancements:
+       * 1) It could be made optional as some consumers may not like it
+       * 2) It could be enhanced to use reflection when using Avro reflection-based entities
+       */
+      if (key instanceof IndexedRecord) {
+        IndexedRecord record = (IndexedRecord) key;
+        for (Entry<String, Object> partitionFieldValue : partitionFieldValues.entrySet()) {
+          int fieldPos = record.getSchema().getField(partitionFieldValue.getKey()).pos();
+          record.put(fieldPos, partitionFieldValue.getValue());
+        }
+      }
       datasetWriter.write(key);
     }
 
@@ -151,6 +172,21 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskAttemptContext);
     Dataset<E> dataset = loadDataset(conf);
+    
+    // grab identity field values from the PartitionKey for partitioned datasets
+    Map<String, Object> partitionFieldValues = new HashMap<String, Object>();
+    PartitionKey partitionKey = ((AbstractDataset) dataset).getPartitionKey();
+    if (partitionKey != null) {
+      DatasetDescriptor topLevelDescriptor = loadTopLevelDataset(conf).getDescriptor();
+      List<FieldPartitioner> fieldPartitioners = topLevelDescriptor.getPartitionStrategy().getFieldPartitioners();
+      for (int i = 0; i < fieldPartitioners.size(); i++) {
+        FieldPartitioner fieldPartitioner = fieldPartitioners.get(i);
+        if (fieldPartitioner instanceof IdentityFieldPartitioner<?>) {
+          IdentityFieldPartitioner<?> identityFieldPartitioner = (IdentityFieldPartitioner<?>) fieldPartitioner;
+          partitionFieldValues.put(identityFieldPartitioner.getSourceName(), partitionKey.get(i));
+        }
+      }
+    }
 
     if (usePerTaskAttemptDatasets(dataset)) {
       dataset = loadOrCreateTaskAttemptDataset(taskAttemptContext, partitionKey);
