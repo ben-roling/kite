@@ -33,7 +33,6 @@ import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
-import org.kitesdk.data.spi.AbstractDatasetRepository;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.PartitionListener;
@@ -74,6 +73,10 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
 
   // reusable path converter, has no relevant state
   private final PathConversion convert;
+  
+  private boolean frozen;
+  
+  private static final String FROZEN_INDICATOR = "_FROZEN";
 
   FileSystemDataset(FileSystem fileSystem, Path directory, String name,
                     DatasetDescriptor descriptor,
@@ -95,9 +98,10 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
 
   FileSystemDataset(FileSystem fileSystem, Path directory, String name,
     DatasetDescriptor descriptor, @Nullable PartitionKey partitionKey,
-    @Nullable PartitionListener partitionListener) {
+    @Nullable PartitionListener partitionListener, boolean frozen) {
     this(fileSystem, directory, name, descriptor, partitionListener);
     this.partitionKey = partitionKey;
+    this.frozen = frozen;
   }
 
   @Override
@@ -128,6 +132,8 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
   }
 
   public boolean deleteAll() {
+    Preconditions.checkState(!frozen, "Dataset must not be frozen");
+    
     // no constraints, so delete is always aligned to partition boundaries
     return unbounded.deleteAllUnsafe();
   }
@@ -149,7 +155,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
   protected RefinableView<E> asRefinableView() {
     return unbounded;
   }
-
+  
   @Override
   @Nullable
   @Deprecated
@@ -235,9 +241,10 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
             .build())
         .partitionKey(key)
         .partitionListener(partitionListener)
+        .frozen(frozen)
         .build();
   }
-
+  
   @Override
   @Deprecated
   public void dropPartition(PartitionKey key) {
@@ -245,6 +252,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
       "Attempt to drop a partition on a non-partitioned dataset (name:%s)",
       name);
     Preconditions.checkArgument(key != null, "Partition key may not be null");
+    Preconditions.checkState(!frozen, "Dataset must not be frozen");
 
     logger.debug("Dropping partition with key:{} dataset:{}", key, name);
 
@@ -311,6 +319,8 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
 
   @Override
   public void merge(FileSystemDataset<E> update) {
+    Preconditions.checkState(!frozen, "Dataset must not be frozen");
+    
     DatasetDescriptor updateDescriptor = update.getDescriptor();
 
     if (!updateDescriptor.getFormat().equals(descriptor.getFormat())) {
@@ -396,6 +406,24 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
 
     return Accessor.getDefault().newPartitionKey(values.toArray());
   }
+  
+  @Override
+  public boolean isFrozen() {
+    return frozen;
+  }
+  
+  @Override
+  public void freeze() {
+    if (!isFrozen()) {
+      try {
+        fileSystem.createNewFile(new Path(getDirectory(), FROZEN_INDICATOR));
+      } catch (IOException e) {
+        throw new DatasetException("Could not create " + FROZEN_INDICATOR
+            + " file in " + getDirectory(), e);
+      }
+      frozen = true;
+    }
+  }
 
   public static class Builder {
 
@@ -406,6 +434,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     private DatasetDescriptor descriptor;
     private PartitionKey partitionKey;
     private PartitionListener partitionListener;
+    private boolean frozen;
 
     public Builder name(String name) {
       this.name = name;
@@ -440,6 +469,11 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
       this.partitionListener = partitionListener;
       return this;
     }
+    
+    Builder frozen(boolean frozen) {
+      this.frozen = frozen;
+      return this;
+    }
 
     public <E> FileSystemDataset<E> build() {
       Preconditions.checkState(this.name != null, "No dataset name defined");
@@ -447,7 +481,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
         "No dataset descriptor defined");
       Preconditions.checkState((conf != null) || (fileSystem != null),
           "Configuration or FileSystem must be set");
-
+      
       this.directory = new Path(descriptor.getLocation());
 
       if (fileSystem == null) {
@@ -457,11 +491,20 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
           throw new DatasetException("Cannot access FileSystem", ex);
         }
       }
-
+      
       Path absoluteDirectory = fileSystem.makeQualified(directory);
+      try {
+        if (fileSystem.exists(new Path(absoluteDirectory, FROZEN_INDICATOR))) {
+          frozen = true;
+        }
+      } catch (IOException e) {
+        throw new DatasetException("Cannot check for " + FROZEN_INDICATOR
+            + " indicator in " + absoluteDirectory, e);
+      }
+      
       return new FileSystemDataset<E>(
           fileSystem, absoluteDirectory, name, descriptor, partitionKey,
-          partitionListener);
+          partitionListener, frozen);
     }
   }
 

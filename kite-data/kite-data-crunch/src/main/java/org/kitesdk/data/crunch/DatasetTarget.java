@@ -34,9 +34,10 @@ class DatasetTarget<E> implements MapReduceTarget {
 
   FormatBundle formatBundle;
 
-  public DatasetTarget(String datasetUri) {
+  public DatasetTarget(String datasetUri, boolean freeze) {
     this.formatBundle = FormatBundle.forOutput(DatasetKeyOutputFormat.class);
     formatBundle.set(DatasetKeyOutputFormat.KITE_DATASET_URI, datasetUri);
+    formatBundle.set(DatasetKeyOutputFormat.KITE_FREEZE_DATASET, Boolean.toString(freeze));
   }
 
   @Override

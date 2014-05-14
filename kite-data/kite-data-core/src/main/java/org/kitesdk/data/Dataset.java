@@ -86,6 +86,22 @@ public interface Dataset<E> extends RefinableView<E> {
   Dataset<E> createPartition(PartitionKey key);
   
   /**
+   * Freezes the Dataset such that no further data may be added.
+   * Does nothing if the {@link Dataset} is already frozen.
+   * 
+   * @throws DatasetException
+   */
+  void freeze();
+  
+  /**
+   * Indicates if the dataset is {@link #freeze() frozen}.
+   * 
+   * @return true if the dataset is frozen, else false.
+   * @throws DatasetException
+   */
+  boolean isFrozen();
+  
+  /**
    * Drop a partition for a {@link PartitionKey}. Dropping a partition that
    * doesn't exist results in a {@link DatasetException} being thrown.
    *

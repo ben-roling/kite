@@ -93,6 +93,19 @@ public class CrunchDatasets {
    * filesystem-based.
    */
   public static <E> Target asTarget(Dataset<E> dataset) {
-    return new DatasetTarget<E>(datasetUri.getUri());
+    return asTarget(dataset, false);
+  }
+  
+  /**
+   * Equivalent to {@link #asTarget(Dataset)} with the option
+   * to {@link Dataset#freeze() freeze} the Dataset on commit
+   * 
+   * @param dataset the dataset
+   * @param freezeDataset true to freeze the dataset on commit, else false
+   * @return the {@link Target}, or <code>null</code> if the dataset is not
+   * filesystem-based.
+   */
+  public static <E> Target asTarget(Dataset<E> dataset, boolean freezeDataset) {
+    return new DatasetTarget<E>(dataset.getUri(), freezeDataset);
   }
 }

@@ -129,4 +129,14 @@ class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>
   public String getUri() {
     return Accessor.getDefault().getUri(this, null);
   }
+
+  @Override
+  public void freeze() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean isFrozen() {
+    return false;
+  }
 }

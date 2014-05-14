@@ -22,9 +22,13 @@ import org.kitesdk.data.DatasetReader;
 import org.kitesdk.data.DatasetWriter;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.RefinableView;
+
 import javax.annotation.concurrent.Immutable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A common Dataset base class to simplify implementations.
@@ -46,6 +50,8 @@ public abstract class AbstractDataset<E> implements Dataset<E>, RefinableView<E>
 
   @Override
   public DatasetWriter<E> newWriter() {
+    Preconditions.checkState(!isFrozen(), "Dataset must not be frozen");
+    
     logger.debug("Getting writer to dataset:{}", this);
 
     return asRefinableView().newWriter();

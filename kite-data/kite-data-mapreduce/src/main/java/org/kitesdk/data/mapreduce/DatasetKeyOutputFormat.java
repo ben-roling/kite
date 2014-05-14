@@ -60,6 +60,7 @@ import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
 public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   public static final String KITE_DATASET_URI = "kite.outputDatasetUri";
+  public static final String KITE_FREEZE_DATASET = "kite.freezeDataset";
 
   public static void setDatasetUri(Job job, String uri) {
     job.getConfiguration().set(KITE_DATASET_URI, uri);
@@ -132,6 +133,12 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
       Dataset<E> jobDataset = loadJobDataset(jobContext);
       
       ((Mergeable<Dataset<E>>) dataset).merge(jobDataset);
+      
+      if (conf.getBoolean(KITE_FREEZE_DATASET, false)) {
+        // re-load the dataset in case the URI points to a partition
+        dataset = loadDataset(conf);
+        dataset.freeze();
+      }
       deleteJobDataset(jobContext);
     }
 
