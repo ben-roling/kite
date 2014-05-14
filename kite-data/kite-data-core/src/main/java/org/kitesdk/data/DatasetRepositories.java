@@ -212,13 +212,7 @@ public class DatasetRepositories {
    * @since 0.8.0
    */
   public static DatasetRepository open(URI repositoryUri) {
-    final Map<String, String> baseMatch = BASE_PATTERN.getMatch(repositoryUri);
-
-    Preconditions.checkArgument(baseMatch != null,
-        "Invalid dataset repository URI:%s - scheme must be `repo:`",
-        repositoryUri);
-
-    final URI storage = URI.create(baseMatch.get("storage-uri"));
+    final URI storage = getStorageUri(repositoryUri);
     Map<String, String> match;
 
     for (URIPattern pattern : REGISTRY.keySet()) {
@@ -234,6 +228,20 @@ public class DatasetRepositories {
     }
 
     throw new IllegalArgumentException("Unknown storage URI:" + storage);
+  }
+  
+  static URI getStorageUri(URI repositoryUri) {
+    final Map<String, String> baseMatch = BASE_PATTERN.getMatch(repositoryUri);
+
+    Preconditions.checkArgument(baseMatch != null,
+        "Invalid dataset repository URI:%s - scheme must be `repo:`",
+        repositoryUri);
+
+    return URI.create(baseMatch.get("storage-uri"));
+  }
+  
+  static URI getStorageUri(String repositoryUri) {
+    return getStorageUri(URI.create(repositoryUri));
   }
 
   /**

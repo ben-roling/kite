@@ -16,13 +16,10 @@
 package org.kitesdk.data.mapreduce;
 
 import com.google.common.annotations.Beta;
-import com.google.common.base.Preconditions;
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
@@ -30,10 +27,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.kitesdk.data.Dataset;
-import org.kitesdk.data.DatasetRepositories;
-import org.kitesdk.data.DatasetRepository;
-import org.kitesdk.data.PartitionKey;
-import org.kitesdk.data.spi.filesystem.FileSystemDataset;
+import org.kitesdk.data.Datasets;
 import org.kitesdk.data.spi.AbstractDataset;
 
 /**
@@ -48,19 +42,13 @@ import org.kitesdk.data.spi.AbstractDataset;
 public class DatasetKeyInputFormat<E> extends InputFormat<E, Void>
     implements Configurable {
 
-  public static final String KITE_REPOSITORY_URI = "kite.inputRepositoryUri";
-  public static final String KITE_DATASET_NAME = "kite.inputDatasetName";
-  public static final String KITE_PARTITION_DIR = "kite.inputPartitionDir";
+  public static final String KITE_DATASET_URI = "kite.inputDatasetUri";
 
   private Configuration conf;
   private InputFormat<E, Void> delegate;
 
-  public static void setRepositoryUri(Job job, URI uri) {
-    job.getConfiguration().set(KITE_REPOSITORY_URI, uri.toString());
-  }
-
-  public static void setDatasetName(Job job, String name) {
-    job.getConfiguration().set(KITE_DATASET_NAME, name);
+  public static void setDatasetUri(Job job, String uri) {
+    job.getConfiguration().set(KITE_DATASET_URI, uri);
   }
 
   @Override
@@ -73,17 +61,6 @@ public class DatasetKeyInputFormat<E> extends InputFormat<E, Void>
     conf = configuration;
     Dataset<E> dataset = loadDataset(configuration);
 
-    // TODO: the following should generalize with views
-    String partitionDir = conf.get(KITE_PARTITION_DIR);
-    if (dataset.getDescriptor().isPartitioned() && partitionDir != null) {
-      Preconditions.checkArgument(dataset instanceof FileSystemDataset);
-      PartitionKey key = ((FileSystemDataset) dataset)
-          .keyFromDirectory(new Path(partitionDir));
-      if (key != null) {
-        dataset = dataset.getPartition(key, true);
-      }
-    }
-
     if (dataset instanceof AbstractDataset) {
       delegate = ((AbstractDataset<E>) dataset).getDelegateInputFormat();
     } else {
@@ -93,8 +70,7 @@ public class DatasetKeyInputFormat<E> extends InputFormat<E, Void>
   }
 
   private static <E> Dataset<E> loadDataset(Configuration conf) {
-    DatasetRepository repo = DatasetRepositories.open(conf.get(KITE_REPOSITORY_URI));
-    return repo.load(conf.get(KITE_DATASET_NAME));
+    return Datasets.load(conf.get(KITE_DATASET_URI));
   }
 
   @Override

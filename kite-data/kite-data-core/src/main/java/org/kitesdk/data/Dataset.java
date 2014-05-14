@@ -58,7 +58,7 @@ public interface Dataset<E> extends RefinableView<E> {
    * Get the {@link DatasetDescriptor} associated with this dataset.
    */
   DatasetDescriptor getDescriptor();
-
+  
   /**
    * Get a partition for a {@link PartitionKey}, optionally creating the
    * partition if it doesn't already exist. You can obtain the
@@ -72,7 +72,19 @@ public interface Dataset<E> extends RefinableView<E> {
    * @throws DatasetException
    */
   Dataset<E> getPartition(PartitionKey key, boolean autoCreate);
-
+  
+  /**
+   * Creates a partition identified by the given key or fails with
+   * {@link PartitionAlreadyExistsException} if the partition already
+   * exists.
+   * 
+   * @param key the identifier for the partition
+   * @return the partition
+   * @throws DatasetException
+   * @throws PartitionAlreadyExistsException
+   */
+  Dataset<E> createPartition(PartitionKey key);
+  
   /**
    * Drop a partition for a {@link PartitionKey}. Dropping a partition that
    * doesn't exist results in a {@link DatasetException} being thrown.
@@ -96,5 +108,13 @@ public interface Dataset<E> extends RefinableView<E> {
    * @throws DatasetException
    */
   Iterable<Dataset<E>> getPartitions();
+
+  /**
+   * Gets the URI identifying the dataset
+   * 
+   * @return the URI of the dataset
+   * @throws DatasetException
+   */
+  String getUri();
 
 }

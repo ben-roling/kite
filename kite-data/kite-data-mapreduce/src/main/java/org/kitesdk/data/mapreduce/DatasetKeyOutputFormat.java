@@ -16,10 +16,11 @@
 package org.kitesdk.data.mapreduce;
 
 import com.google.common.annotations.Beta;
+
 import java.io.IOException;
 import java.net.URI;
+
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
@@ -33,9 +34,12 @@ import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetRepositories;
 import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.DatasetWriter;
+import org.kitesdk.data.Datasets;
 import org.kitesdk.data.PartitionKey;
+import org.kitesdk.data.Datasets.LoadFlag;
+import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.AbstractDatasetRepository;
 import org.kitesdk.data.spi.Mergeable;
-import org.kitesdk.data.spi.filesystem.FileSystemDataset;
 
 /**
  * A MapReduce {@code OutputFormat} for writing to a {@link Dataset}.
@@ -48,16 +52,10 @@ import org.kitesdk.data.spi.filesystem.FileSystemDataset;
 @Beta
 public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
-  public static final String KITE_REPOSITORY_URI = "kite.outputRepositoryUri";
-  public static final String KITE_DATASET_NAME = "kite.outputDatasetName";
-  public static final String KITE_PARTITION_DIR = "kite.outputPartitionDir";
+  public static final String KITE_DATASET_URI = "kite.outputDatasetUri";
 
-  public static void setRepositoryUri(Job job, URI uri) {
-    job.getConfiguration().set(KITE_REPOSITORY_URI, uri.toString());
-  }
-
-  public static void setDatasetName(Job job, String name) {
-    job.getConfiguration().set(KITE_DATASET_NAME, name);
+  public static void setDatasetUri(Job job, String uri) {
+    job.getConfiguration().set(KITE_DATASET_URI, uri);
   }
 
   static class DatasetRecordWriter<E> extends RecordWriter<E, Void> {
@@ -108,8 +106,10 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     @Override
     @SuppressWarnings("unchecked")
     public void commitJob(JobContext jobContext) throws IOException {
-      Dataset<E> dataset = loadDataset(jobContext);
+      Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
+      Dataset<E> dataset = loadTopLevelDataset(conf);
       Dataset<E> jobDataset = loadJobDataset(jobContext);
+      
       ((Mergeable<Dataset<E>>) dataset).merge(jobDataset);
       deleteJobDataset(jobContext);
     }
@@ -150,25 +150,15 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
   public RecordWriter<E, Void> getRecordWriter(TaskAttemptContext taskAttemptContext) {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskAttemptContext);
-    Dataset<E> dataset = loadDataset(taskAttemptContext);
+    Dataset<E> dataset = loadDataset(conf);
 
     if (usePerTaskAttemptDatasets(dataset)) {
-      dataset = loadOrCreateTaskAttemptDataset(taskAttemptContext);
+      dataset = loadOrCreateTaskAttemptDataset(taskAttemptContext, partitionKey);
     }
 
-    // TODO: the following should generalize with views
-    String partitionDir = conf.get(KITE_PARTITION_DIR);
-    if (dataset.getDescriptor().isPartitioned() && partitionDir != null) {
-      PartitionKey key = ((FileSystemDataset) dataset)
-          .keyFromDirectory(new Path(partitionDir));
-      if (key != null) {
-        dataset = dataset.getPartition(key, true);
-      }
-    }
-
-    return new DatasetRecordWriter<E>(dataset);
+    return new DatasetRecordWriter<E>(dataset, partitionFieldValues);
   }
-
+  
   @Override
   public void checkOutputSpecs(JobContext jobContext) {
     // always run
@@ -176,7 +166,9 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   @Override
   public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) {
-    Dataset<E> dataset = loadDataset(taskAttemptContext);
+    Configuration conf = Hadoop.TaskAttemptContext
+        .getConfiguration.invoke(taskAttemptContext);
+    Dataset<E> dataset = loadTopLevelDataset(conf);
     return usePerTaskAttemptDatasets(dataset) ?
         new MergeOutputCommitter<E>() : new NullOutputCommitter();
   }
@@ -192,28 +184,41 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   private static DatasetRepository getDatasetRepository(JobContext jobContext) {
     Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
-    return DatasetRepositories.open(conf.get(KITE_REPOSITORY_URI));
+    return DatasetRepositories.open(conf.get(KITE_DATASET_URI));
   }
 
   private static String getJobDatasetName(JobContext jobContext) {
     Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
-    return conf.get(KITE_DATASET_NAME) + "_" + jobContext.getJobID().toString();
+    return loadDataset(conf).getName() + "_" + jobContext.getJobID().toString();
   }
 
   private static String getTaskAttemptDatasetName(TaskAttemptContext taskContext) {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskContext);
-    return conf.get(KITE_DATASET_NAME) + "_" + taskContext.getTaskAttemptID().toString();
+    return loadDataset(conf).getName() + "_" + taskContext.getTaskAttemptID().toString();
   }
 
-  private static <E> Dataset<E> loadDataset(JobContext jobContext) {
-    Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
-    DatasetRepository repo = getDatasetRepository(jobContext);
-    return repo.load(conf.get(KITE_DATASET_NAME));
+  private static <E> Dataset<E> loadDataset(Configuration conf) {
+    return Datasets.load(conf.get(KITE_DATASET_URI), LoadFlag.AUTO_CREATE_PARTITION);
+  }
+  
+  private static <E> Dataset<E> loadTopLevelDataset(Configuration conf) {
+    Dataset<E> dataset = loadDataset(conf);
+    
+    // TODO: replace with View#getDataset to get the top-level dataset
+    DatasetRepository repo = DatasetRepositories.open(getRepositoryUri(dataset));
+    Dataset<E> topLevelDataset = repo.load(dataset.getName());
+    return topLevelDataset;
+  }
+  
+  private static <E> String getRepositoryUri(Dataset<E> dataset) {
+    return dataset.getDescriptor().getProperty(
+        AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME);
   }
 
   private static <E> Dataset<E> createJobDataset(JobContext jobContext) {
-    Dataset<Object> dataset = loadDataset(jobContext);
+    Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
+    Dataset<Object> dataset = loadTopLevelDataset(conf);
     String jobDatasetName = getJobDatasetName(jobContext);
     DatasetRepository repo = getDatasetRepository(jobContext);
     return repo.create(jobDatasetName, copy(dataset.getDescriptor()));
@@ -229,15 +234,22 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     repo.delete(getJobDatasetName(jobContext));
   }
 
-  private static <E> Dataset<E> loadOrCreateTaskAttemptDataset(TaskAttemptContext taskContext) {
-    Dataset<Object> dataset = loadDataset(taskContext);
-    String taskAttemptDatasetName = getTaskAttemptDatasetName(taskContext);
-    DatasetRepository repo = getDatasetRepository(taskContext);
+  private static <E> Dataset<E> loadOrCreateTaskAttemptDataset(TaskAttemptContext taskAttemptContext, PartitionKey partitionKey) {
+    Configuration conf = Hadoop.TaskAttemptContext
+        .getConfiguration.invoke(taskAttemptContext);
+    Dataset<E> topLevelDataset = loadTopLevelDataset(conf);
+    String taskAttemptDatasetName = getTaskAttemptDatasetName(taskAttemptContext);
+    DatasetRepository repo = getDatasetRepository(taskAttemptContext);
+    Dataset<E> dataset;
     if (repo.exists(taskAttemptDatasetName)) {
-      return repo.load(taskAttemptDatasetName);
+      dataset = repo.load(taskAttemptDatasetName);
     } else {
-      return repo.create(taskAttemptDatasetName, copy(dataset.getDescriptor()));
+      dataset = repo.create(taskAttemptDatasetName, copy(topLevelDataset.getDescriptor()));
     }
+    if (partitionKey != null) {
+      dataset = dataset.getPartition(partitionKey, true);
+    }
+    return dataset;
   }
 
   private static <E> Dataset<E> loadTaskAttemptDataset(TaskAttemptContext taskContext) {

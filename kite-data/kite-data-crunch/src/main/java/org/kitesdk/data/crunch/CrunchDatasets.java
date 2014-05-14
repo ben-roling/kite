@@ -93,6 +93,6 @@ public class CrunchDatasets {
    * filesystem-based.
    */
   public static <E> Target asTarget(Dataset<E> dataset) {
-    return new DatasetTarget<E>(dataset);
+    return new DatasetTarget<E>(datasetUri.getUri());
   }
 }

@@ -28,35 +28,15 @@ import org.apache.crunch.types.avro.AvroType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
-import org.kitesdk.data.Dataset;
-import org.kitesdk.data.DatasetRepositories;
-import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.mapreduce.DatasetKeyOutputFormat;
-import org.kitesdk.data.spi.AbstractDatasetRepository;
 
 class DatasetTarget<E> implements MapReduceTarget {
 
   FormatBundle formatBundle;
 
-  public DatasetTarget(Dataset<E> dataset) {
+  public DatasetTarget(String datasetUri) {
     this.formatBundle = FormatBundle.forOutput(DatasetKeyOutputFormat.class);
-    formatBundle.set(DatasetKeyOutputFormat.KITE_REPOSITORY_URI, getRepositoryUri(dataset));
-    formatBundle.set(DatasetKeyOutputFormat.KITE_DATASET_NAME, dataset.getName());
-
-    // TODO: replace with View#getDataset to get the top-level dataset
-    DatasetRepository repo = DatasetRepositories.open(getRepositoryUri(dataset));
-    // only set the partition dir for subpartitions
-    Dataset<E> topLevelDataset = repo.load(dataset.getName());
-    if (topLevelDataset.getDescriptor().isPartitioned() &&
-        topLevelDataset.getDescriptor().getLocation() != null &&
-        !topLevelDataset.getDescriptor().getLocation().equals(dataset.getDescriptor().getLocation())) {
-      formatBundle.set(DatasetKeyOutputFormat.KITE_PARTITION_DIR, dataset.getDescriptor().getLocation().toString());
-    }
-  }
-
-  private String getRepositoryUri(Dataset<E> dataset) {
-    return dataset.getDescriptor().getProperty(
-        AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME);
+    formatBundle.set(DatasetKeyOutputFormat.KITE_DATASET_URI, datasetUri);
   }
 
   @Override

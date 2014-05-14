@@ -15,27 +15,34 @@
  */
 package org.kitesdk.data.spi.filesystem;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import java.util.Iterator;
 import java.util.Set;
+
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.DatasetRepositoryException;
+import org.kitesdk.data.PartitionAlreadyExistsException;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.AbstractDatasetRepository;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.PartitionListener;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -102,7 +110,8 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     return descriptor;
   }
 
-  PartitionKey getPartitionKey() {
+  @Override
+  public PartitionKey getPartitionKey() {
     return partitionKey;
   }
 
@@ -152,8 +161,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     logger.debug("Loading partition for key {}, allowCreate:{}", new Object[] {
       key, allowCreate });
 
-    Path partitionDirectory = fileSystem.makeQualified(
-        toDirectoryName(directory, key));
+    Path partitionDirectory = getPartitionDirectory(key);
 
     try {
       if (!fileSystem.exists(partitionDirectory)) {
@@ -168,9 +176,52 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
         }
       }
     } catch (IOException e) {
-      throw new DatasetException("Unable to locate or create dataset partition directory " + partitionDirectory, e);
+      throw new DatasetException(
+          "Unable to locate or create dataset partition directory "
+              + partitionDirectory, e);
     }
 
+    return getPartition(key, partitionDirectory);
+  }
+  
+  public Dataset<E> createPartition(PartitionKey key) {
+    Preconditions.checkState(descriptor.isPartitioned(),
+        "Attempt to create a partition on a non-partitioned dataset (name:%s)",
+        name);
+    Preconditions.checkState(!frozen, "Dataset must not be frozen");
+
+    logger.debug("Creating partition for key {}", new Object[] {
+      key});
+
+    Path partitionDirectory = getPartitionDirectory(key);
+
+    try {
+      fileSystem.mkdirs(partitionDirectory);
+      if (partitionListener != null) {
+        partitionListener.partitionAdded(name, toRelativeDirectory(key)
+            .toString());
+      }
+    } catch (IOException e) {
+      try {
+        if (fileSystem.exists(partitionDirectory)) {
+          throw new PartitionAlreadyExistsException(this, key);
+        }
+      } catch (IOException e1) {
+        throw new DatasetException(
+            "Unable to locate or create dataset partition directory "
+                + partitionDirectory, e);
+      }
+    }
+
+    return getPartition(key, partitionDirectory);
+  }
+  
+  private Path getPartitionDirectory(PartitionKey key) {
+    return fileSystem.makeQualified(
+        toDirectoryName(directory, key));
+  }
+  
+  private Dataset<E> getPartition(PartitionKey key, Path partitionDirectory) {
     int partitionDepth = key.getLength();
     PartitionStrategy subpartitionStrategy = Accessor.getDefault()
         .getSubpartitionStrategy(partitionStrategy, partitionDepth);
@@ -205,7 +256,9 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
           + " for key " + key + " does not exist");
       }
     } catch (IOException e) {
-      throw new DatasetException("Unable to locate or drop dataset partition directory " + partitionDirectory, e);
+      throw new DatasetException(
+          "Unable to locate or drop dataset partition directory "
+              + partitionDirectory, e);
     }
   }
 
@@ -412,4 +465,17 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     }
   }
 
+  @Override
+  public String getUri() {
+    return Accessor.getDefault().getUri(this,
+            partitionKey != null && !partitionKey.getValues().isEmpty() ? partitionKey
+                .getValues().toString() : null);
+  }
+  
+  @Override
+  public PartitionKey toPartitionKey(String partitionKey) {
+    Object[] keyValues = Iterables.toArray(Splitter.on(",").split(
+        partitionKey.substring(1, partitionKey.length()-1)), Object.class);
+    return descriptor.getPartitionStrategy().partitionKey(keyValues);
+  }
 }

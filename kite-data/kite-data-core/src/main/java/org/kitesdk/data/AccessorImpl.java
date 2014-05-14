@@ -15,6 +15,8 @@
  */
 package org.kitesdk.data;
 
+import javax.annotation.Nullable;
+
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.OptionBuilder;
 import org.kitesdk.data.spi.URIPattern;
@@ -65,5 +67,10 @@ final class AccessorImpl extends Accessor {
   @SuppressWarnings("deprecation")
   public DatasetException providerExceptionFor(DatasetException e) {
     return new MetadataProviderException(e);
+  }
+  
+  @Override
+  public <E> String getUri(Dataset<E> dataset, @Nullable String partitionKey) {
+    return Datasets.getUri(dataset, partitionKey);
   }
 }
