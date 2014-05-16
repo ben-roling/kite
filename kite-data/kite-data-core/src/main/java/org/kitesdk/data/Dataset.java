@@ -74,18 +74,6 @@ public interface Dataset<E> extends RefinableView<E> {
   Dataset<E> getPartition(PartitionKey key, boolean autoCreate);
   
   /**
-   * Creates a partition identified by the given key or fails with
-   * {@link PartitionAlreadyExistsException} if the partition already
-   * exists.
-   * 
-   * @param key the identifier for the partition
-   * @return the partition
-   * @throws DatasetException
-   * @throws PartitionAlreadyExistsException
-   */
-  Dataset<E> createPartition(PartitionKey key);
-  
-  /**
    * Freezes the Dataset such that no further data may be added.
    * Does nothing if the {@link Dataset} is already frozen.
    * 

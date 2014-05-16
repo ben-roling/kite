@@ -96,6 +96,10 @@ public class CrunchDatasets {
     return asTarget(dataset, false);
   }
   
+  public static <E> Target asTarget(String datasetUri) {
+    return new DatasetTarget<E>(datasetUri, false);
+  }
+  
   /**
    * Equivalent to {@link #asTarget(Dataset)} with the option
    * to {@link Dataset#freeze() freeze} the Dataset on commit
@@ -107,5 +111,9 @@ public class CrunchDatasets {
    */
   public static <E> Target asTarget(Dataset<E> dataset, boolean freezeDataset) {
     return new DatasetTarget<E>(dataset.getUri(), freezeDataset);
+  }
+  
+  public static <E> Target asTarget(String datasetUri, boolean freezeTarget) {
+    return new DatasetTarget<E>(datasetUri, freezeTarget);
   }
 }

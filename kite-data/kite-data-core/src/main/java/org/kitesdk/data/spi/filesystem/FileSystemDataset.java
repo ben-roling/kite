@@ -27,6 +27,8 @@ import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.DatasetRepositoryException;
+import org.kitesdk.data.Datasets;
+import org.kitesdk.data.Datasets.LoadFlag;
 import org.kitesdk.data.PartitionAlreadyExistsException;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
@@ -328,45 +330,77 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
           updateDescriptor.getFormat() + " with format " + descriptor.getFormat());
     }
 
-    if (updateDescriptor.isPartitioned() != descriptor.isPartitioned()) {
-      throw new DatasetRepositoryException("Cannot merge an unpartitioned dataset with a " +
-          " partitioned one or vice versa.");
-    } else if (updateDescriptor.isPartitioned() && descriptor.isPartitioned() &&
-        !updateDescriptor.getPartitionStrategy().equals(descriptor.getPartitionStrategy())) {
-      throw new DatasetRepositoryException("Cannot merge dataset partition strategy " +
-          updateDescriptor.getPartitionStrategy() + " with " + descriptor.getPartitionStrategy());
+    if (updateDescriptor.isPartitioned() && descriptor.isPartitioned()) {
+      verifyMatchingPartitionStrategy(updateDescriptor);
+    }
+    
+    if (updateDescriptor.isPartitioned() && !descriptor.isPartitioned()) {
+      throw new DatasetRepositoryException("Cannot merge a partitioned dataset into an"
+          + " an upartitioned dataset");
     }
 
     if (!updateDescriptor.getSchema().equals(descriptor.getSchema())) {
       throw new DatasetRepositoryException("Cannot merge dataset schema " +
           updateDescriptor.getFormat() + " with schema " + descriptor.getFormat());
     }
+    
+    if (descriptor.isPartitioned() && !updateDescriptor.isPartitioned()) {
+      mergeSubpartition(update);
+    }
+    else {
+      Set<String> addedPartitions = Sets.newHashSet();
+      for (Path path : update.pathIterator()) {
+        URI relativePath = update.getDirectory().toUri().relativize(path.toUri());
+        Path newPath = new Path(directory, new Path(relativePath));
+        Path newPartitionDirectory = newPath.getParent();
+        try {
+          if (!fileSystem.exists(newPartitionDirectory)) {
+            fileSystem.mkdirs(newPartitionDirectory);
+          }
+          logger.debug("Renaming {} to {}", path, newPath);
+          boolean renameOk = fileSystem.rename(path, newPath);
+          if (!renameOk) {
+            throw new DatasetException("Dataset merge failed during rename of " + path +
+                " to " + newPath);
+          }
+        } catch (IOException e) {
+          throw new DatasetIOException("Dataset merge failed", e);
+        }
+        if (descriptor.isPartitioned() && partitionListener != null) {
+          String partition = newPartitionDirectory.toString();
+          if (!addedPartitions.contains(partition)) {
+            partitionListener.partitionAdded(name, partition);
+            addedPartitions.add(partition);
+          }
+        }
+      }
+    }
+  }
 
-    Set<String> addedPartitions = Sets.newHashSet();
-    for (Path path : update.pathIterator()) {
-      URI relativePath = update.getDirectory().toUri().relativize(path.toUri());
-      Path newPath = new Path(directory, new Path(relativePath));
-      Path newPartitionDirectory = newPath.getParent();
-      try {
-        if (!fileSystem.exists(newPartitionDirectory)) {
-          fileSystem.mkdirs(newPartitionDirectory);
-        }
-        logger.debug("Renaming {} to {}", path, newPath);
-        boolean renameOk = fileSystem.rename(path, newPath);
-        if (!renameOk) {
-          throw new DatasetException("Dataset merge failed during rename of " + path +
-              " to " + newPath);
-        }
-      } catch (IOException e) {
-        throw new DatasetIOException("Dataset merge failed", e);
-      }
-      if (descriptor.isPartitioned() && partitionListener != null) {
-        String partition = newPartitionDirectory.toString();
-        if (!addedPartitions.contains(partition)) {
-          partitionListener.partitionAdded(name, partition);
-          addedPartitions.add(partition);
-        }
-      }
+  private void mergeSubpartition(FileSystemDataset<E> update) {
+    FileSystemDataset<E> updateTopLevel = (FileSystemDataset<E>) Datasets.load(
+        update.getUri(), LoadFlag.BASE_DATASET_ONLY);
+    DatasetDescriptor updateTopLevelDescriptor = updateTopLevel.getDescriptor();
+    if (!updateTopLevelDescriptor.isPartitioned()) {
+      throw new DatasetRepositoryException("Cannot merge unpartitioned dataset"
+          + " into partitioned dataset unless it is a subpartition");
+    }
+    verifyMatchingPartitionStrategy(updateTopLevelDescriptor);
+    
+    URI relativePath = updateTopLevel.getDirectory().toUri().relativize(update.getDirectory().toUri());
+    Path newPath = new Path(directory, new Path(relativePath));
+    try {
+      fileSystem.rename(update.getDirectory(), newPath);
+    } catch (IOException e) {
+      throw new DatasetException("Dataset merge failed during rename of " + directory +
+          " to " + newPath);
+    }
+  }
+  
+  private void verifyMatchingPartitionStrategy(DatasetDescriptor updateDescriptor) {
+    if (!updateDescriptor.getPartitionStrategy().equals(descriptor.getPartitionStrategy())) {
+      throw new DatasetRepositoryException("Cannot merge dataset partition strategy " +
+          updateDescriptor.getPartitionStrategy() + " with " + descriptor.getPartitionStrategy());
     }
   }
 

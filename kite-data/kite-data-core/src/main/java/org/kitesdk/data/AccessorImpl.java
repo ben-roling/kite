@@ -73,4 +73,9 @@ final class AccessorImpl extends Accessor {
   public <E> String getUri(Dataset<E> dataset, @Nullable String partitionKey) {
     return Datasets.getUri(dataset, partitionKey);
   }
+  
+  @Override
+  public PartitionKey getPartitionKey(String datasetUri) {
+    return Datasets.getPartitionKey(datasetUri);
+  }
 }

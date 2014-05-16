@@ -39,32 +39,6 @@ public class Datasets {
       Splitter.on('&').withKeyValueSeparator(Splitter.on('='));
   
   /**
-   * Creates the partition identified by the given URI or
-   * throws {@link PartitionAlreadyExistsException} if the partition already exits
-   * 
-   * @param partitionUri the URI identifying the partition
-   * @return the Dataset representing the partition
-   * @throws DatasetException
-   * @throws PartitionAlreadyExistsException
-   */
-  public static <E> Dataset<E> createPartition(String partitionUri) {
-    Dataset<E> dataset = load(partitionUri, LoadFlag.BASE_DATASET_ONLY);
-    
-    Map<String, String> queryParams = getQueryParams(partitionUri);
-    String partitionKeyString = queryParams.get(PARTITION_KEY_PARAM);
-    Preconditions.checkNotNull(partitionKeyString, "URI is not a partition URI: " + partitionKeyString);
-    
-    return dataset.createPartition(getPartitionKey(dataset, partitionKeyString));
-  }
-  
-  /**
-   * Equivalent to {@link #createPartition(String)} with partitionUri.toString()
-   */
-  public static <E> Dataset<E> createPartition(URI partitionUri) {
-    return createPartition(partitionUri.toString());
-  }
-
-  /**
    * Flags used to affect behavior when loading a Dataset from a URI 
    */
   public enum LoadFlag {
@@ -148,6 +122,15 @@ public class Datasets {
     }
     
     return datasetUri;
+  }
+
+  static PartitionKey getPartitionKey(String datasetUri) {
+    Map<String, String> queryParams = getQueryParams(datasetUri);
+    String keyString = queryParams.get(PARTITION_KEY_PARAM);
+    if (keyString == null) {
+      return null;
+    }
+    return getPartitionKey(load(datasetUri, LoadFlag.BASE_DATASET_ONLY), keyString);
   }
   
 }

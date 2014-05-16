@@ -61,11 +61,6 @@ class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>
   }
   
   @Override
-  public Dataset<E> createPartition(PartitionKey key) {
-    throw new UnsupportedOperationException();
-  }
-  
-  @Override
   public void dropPartition(PartitionKey key) {
     throw new UnsupportedOperationException();
   }

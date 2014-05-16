@@ -42,8 +42,7 @@ import org.kitesdk.data.DatasetWriter;
 import org.kitesdk.data.Datasets;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.Datasets.LoadFlag;
-import org.kitesdk.data.spi.AbstractDataset;
-import org.kitesdk.data.spi.AbstractDatasetRepository;
+import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
@@ -129,19 +128,27 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     @SuppressWarnings("unchecked")
     public void commitJob(JobContext jobContext) throws IOException {
       Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
-      Dataset<E> dataset = loadTopLevelDataset(conf);
+      Dataset<E> topLevelDataset = loadTopLevelDataset(conf);
       Dataset<E> jobDataset = loadJobDataset(jobContext);
       
-      ((Mergeable<Dataset<E>>) dataset).merge(jobDataset);
-      
-      if (conf.getBoolean(KITE_FREEZE_DATASET, false)) {
-        // re-load the dataset in case the URI points to a partition
-        dataset = loadDataset(conf);
-        dataset.freeze();
+      PartitionKey partitionKey = getPartitionKey(conf);
+      if (partitionKey != null) {
+        Dataset<E> jobPartition = jobDataset.getPartition(partitionKey, false);
+        if (conf.getBoolean(KITE_FREEZE_DATASET, false)) {
+          jobPartition.freeze();
+        }
+        ((Mergeable<Dataset<E>>) topLevelDataset).merge(jobPartition);
       }
+      else {
+        ((Mergeable<Dataset<E>>) topLevelDataset).merge(jobDataset);
+        if (conf.getBoolean(KITE_FREEZE_DATASET, false)) {
+          topLevelDataset.freeze();
+        }
+      }
+      
       deleteJobDataset(jobContext);
     }
-
+    
     @Override
     public void abortJob(JobContext jobContext, JobStatus.State state) {
       deleteJobDataset(jobContext);
@@ -178,11 +185,10 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
   public RecordWriter<E, Void> getRecordWriter(TaskAttemptContext taskAttemptContext) {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskAttemptContext);
-    Dataset<E> dataset = loadDataset(conf);
     
     // grab identity field values from the PartitionKey for partitioned datasets
     Map<String, Object> partitionFieldValues = new HashMap<String, Object>();
-    PartitionKey partitionKey = ((AbstractDataset) dataset).getPartitionKey();
+    PartitionKey partitionKey = getPartitionKey(conf);
     if (partitionKey != null) {
       DatasetDescriptor topLevelDescriptor = loadTopLevelDataset(conf).getDescriptor();
       List<FieldPartitioner> fieldPartitioners = topLevelDescriptor.getPartitionStrategy().getFieldPartitioners();
@@ -195,13 +201,23 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
       }
     }
 
-    if (usePerTaskAttemptDatasets(dataset)) {
+    Dataset<E> topLevelDataset = loadTopLevelDataset(conf);
+    Dataset<E> dataset;
+    if (usePerTaskAttemptDatasets(topLevelDataset)) {
       dataset = loadOrCreateTaskAttemptDataset(taskAttemptContext, partitionKey);
+    }
+    else {
+      dataset = loadDataset(conf);
     }
 
     return new DatasetRecordWriter<E>(dataset, partitionFieldValues);
   }
   
+  private static PartitionKey getPartitionKey(Configuration conf) {
+    String datasetUri = conf.get(KITE_DATASET_URI);
+    return Accessor.getDefault().getPartitionKey(datasetUri);
+  }
+
   @Override
   public void checkOutputSpecs(JobContext jobContext) {
     // always run
@@ -232,13 +248,13 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   private static String getJobDatasetName(JobContext jobContext) {
     Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
-    return loadDataset(conf).getName() + "_" + jobContext.getJobID().toString();
+    return loadTopLevelDataset(conf).getName() + "_" + jobContext.getJobID().toString();
   }
 
   private static String getTaskAttemptDatasetName(TaskAttemptContext taskContext) {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskContext);
-    return loadDataset(conf).getName() + "_" + taskContext.getTaskAttemptID().toString();
+    return loadTopLevelDataset(conf).getName() + "_" + taskContext.getTaskAttemptID().toString();
   }
 
   private static <E> Dataset<E> loadDataset(Configuration conf) {
@@ -246,19 +262,9 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
   }
   
   private static <E> Dataset<E> loadTopLevelDataset(Configuration conf) {
-    Dataset<E> dataset = loadDataset(conf);
-    
-    // TODO: replace with View#getDataset to get the top-level dataset
-    DatasetRepository repo = DatasetRepositories.open(getRepositoryUri(dataset));
-    Dataset<E> topLevelDataset = repo.load(dataset.getName());
-    return topLevelDataset;
+    return Datasets.load(conf.get(KITE_DATASET_URI), LoadFlag.BASE_DATASET_ONLY);
   }
   
-  private static <E> String getRepositoryUri(Dataset<E> dataset) {
-    return dataset.getDescriptor().getProperty(
-        AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME);
-  }
-
   private static <E> Dataset<E> createJobDataset(JobContext jobContext) {
     Configuration conf = Hadoop.JobContext.getConfiguration.invoke(jobContext);
     Dataset<Object> dataset = loadTopLevelDataset(conf);
