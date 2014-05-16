@@ -192,38 +192,6 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     return getPartition(key, partitionDirectory);
   }
   
-  public Dataset<E> createPartition(PartitionKey key) {
-    Preconditions.checkState(descriptor.isPartitioned(),
-        "Attempt to create a partition on a non-partitioned dataset (name:%s)",
-        name);
-    Preconditions.checkState(!frozen, "Dataset must not be frozen");
-
-    logger.debug("Creating partition for key {}", new Object[] {
-      key});
-
-    Path partitionDirectory = getPartitionDirectory(key);
-
-    try {
-      fileSystem.mkdirs(partitionDirectory);
-      if (partitionListener != null) {
-        partitionListener.partitionAdded(name, toRelativeDirectory(key)
-            .toString());
-      }
-    } catch (IOException e) {
-      try {
-        if (fileSystem.exists(partitionDirectory)) {
-          throw new PartitionAlreadyExistsException(this, key);
-        }
-      } catch (IOException e1) {
-        throw new DatasetException(
-            "Unable to locate or create dataset partition directory "
-                + partitionDirectory, e);
-      }
-    }
-
-    return getPartition(key, partitionDirectory);
-  }
-  
   private Path getPartitionDirectory(PartitionKey key) {
     return fileSystem.makeQualified(
         toDirectoryName(directory, key));
