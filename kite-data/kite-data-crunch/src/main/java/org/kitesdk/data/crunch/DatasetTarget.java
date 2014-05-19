@@ -29,7 +29,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.kitesdk.data.View;
-import org.kitesdk.data.mapreduce.DatasetKeyInputFormat;
 import org.kitesdk.data.mapreduce.DatasetKeyOutputFormat;
 
 class DatasetTarget<E> implements MapReduceTarget {
