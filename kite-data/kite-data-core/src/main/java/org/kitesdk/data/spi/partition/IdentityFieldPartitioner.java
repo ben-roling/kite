@@ -16,6 +16,7 @@
 package org.kitesdk.data.spi.partition;
 
 import com.google.common.base.Predicate;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import com.google.common.base.Objects;
@@ -27,13 +28,23 @@ import com.google.common.base.Objects;
 @Immutable
 public class IdentityFieldPartitioner<S extends Comparable> extends FieldPartitioner<S, S> {
 
-  public IdentityFieldPartitioner(String sourceName, String name, Class<S> type,
-                                  int buckets) {
-    super(sourceName, name, type, type, buckets);
-    if (!(type.equals(Integer.class) || type.equals(Long.class) ||
-        type.equals(String.class))) {
-      throw new IllegalArgumentException("Type not supported " + type);
-    }
+  public IdentityFieldPartitioner(String sourceName, Class<S> type) {
+    this(sourceName, null, type, UNKNOWN_CARDINALITY);
+  }
+
+  public IdentityFieldPartitioner(String sourceName, @Nullable String name,
+                                  Class<S> type) {
+    this(sourceName, name, type, UNKNOWN_CARDINALITY);
+  }
+
+  public IdentityFieldPartitioner(String sourceName, Class<S> type, int buckets) {
+    this(sourceName, null, type, buckets);
+  }
+
+  public IdentityFieldPartitioner(String sourceName, @Nullable String name,
+                                  Class<S> type, int buckets) {
+    super(sourceName, (name == null ? sourceName + "_copy" : name),
+        type, type, buckets);
   }
 
   @Override
@@ -44,13 +55,13 @@ public class IdentityFieldPartitioner<S extends Comparable> extends FieldPartiti
   @Override
   @Deprecated
   @SuppressWarnings("unchecked")
-  public S valueFromString(String stringValue) {
-    if (getType() == Integer.class) {
-      return (S) Integer.valueOf(stringValue);
-    } else if (getType() == Long.class) {
-      return (S) Long.valueOf(stringValue);
-    } else if (getType() == String.class) {
-      return (S) stringValue;
+  public S valueFromString(String stringValue, Class<? extends S> expectedType) {
+    if (expectedType.isAssignableFrom(Integer.class)) {
+      return expectedType.cast(Integer.valueOf(stringValue));
+    } else if (expectedType.isAssignableFrom(Long.class)) {
+      return expectedType.cast(Long.valueOf(stringValue));
+    } else if (expectedType.isAssignableFrom(String.class)) {
+      return expectedType.cast(stringValue);
     }
     throw new IllegalArgumentException("Cannot convert string to type " + getType());
   }
@@ -66,7 +77,12 @@ public class IdentityFieldPartitioner<S extends Comparable> extends FieldPartiti
   }
 
   @Override
-  public boolean equals(Object o) {
+  public Class<? extends S> getType(Class<? extends S> sourceType) {
+    return sourceType;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

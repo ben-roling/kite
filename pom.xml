@@ -19,7 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.kitesdk</groupId>
   <artifactId>kite-parent</artifactId>
-  <version>0.13.1-SNAPSHOT</version>
+  <version>0.14.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -110,7 +110,7 @@
     <javaVersion>1.6</javaVersion>
     <targetJavaVersion>1.6</targetJavaVersion>
 
-    <previous.project.version>0.12.0</previous.project.version> <!-- used by jdiff, semver rule -->
+    <previous.project.version>0.13.0</previous.project.version> <!-- used by jdiff, semver rule -->
 
     <cdh.version>5.0.1</cdh.version>
 
@@ -148,7 +148,7 @@
     <vers.mockito>1.9.5</vers.mockito>
     <vers.mojo-executor>1.5</vers.mojo-executor>
     <vers.oozie>4.0.0-cdh${cdh.version}</vers.oozie>
-    <vers.parquet>1.2.5</vers.parquet>
+    <vers.parquet>1.4.1</vers.parquet>
     <vers.plexus-utils>3.0</vers.plexus-utils>
     <vers.rat>0.9</vers.rat>
     <vers.slf4j>1.6.1</vers.slf4j>
@@ -506,6 +506,7 @@
               <exclude>**/*.avro</exclude>
               <exclude>**/*.avsc</exclude>
               <exclude>**/*.avdl</exclude>
+              <exclude>**/*.json</exclude> <!-- some test fixtures are json -->
               <exclude>**/*.iml</exclude>
               <exclude>**/*.log</exclude>
               <exclude>**/*.md</exclude>
@@ -837,7 +838,7 @@
       </dependency>
       <dependency>
         <groupId>com.twitter</groupId>
-        <artifactId>parquet-hive</artifactId>
+        <artifactId>parquet-hive-bundle</artifactId>
         <version>${vers.parquet}</version>
         <exclusions>
           <exclusion>

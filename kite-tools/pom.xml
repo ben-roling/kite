@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.kitesdk</groupId>
     <artifactId>kite-parent</artifactId>
-    <version>0.13.1-SNAPSHOT</version>
+    <version>0.14.1-SNAPSHOT</version>
   </parent>
 
   <name>Kite Tools Module</name>
@@ -92,8 +92,11 @@
                   <include>com.twitter:parquet-format</include>
                   <include>net.sf.opencsv:opencsv</include>
                   <include>org.apache.commons:commons-jexl</include>
+                  <include>com.fasterxml.jackson.core:jackson-databind</include>
+                  <include>com.fasterxml.jackson.core:jackson-annotations</include>
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>org.kitesdk:kite-data-hcatalog</include>
-                  <include>com.twitter:parquet-hive</include>
+                  <include>com.twitter:parquet-hive-bundle</include>
                   <include>org.kitesdk:kite-data-mapreduce</include>
                   <include>org.kitesdk:kite-data-crunch</include>
                   <include>org.kitesdk:kite-hadoop-compatibility</include>

@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.kitesdk</groupId>
     <artifactId>kite-data</artifactId>
-    <version>0.13.1-SNAPSHOT</version>
+    <version>0.14.1-SNAPSHOT</version>
   </parent>
 
   <name>Kite Data Oozie Module</name>
@@ -98,12 +98,12 @@
     <dependency>
       <groupId>org.kitesdk</groupId>
       <artifactId>kite-data-core</artifactId>
-      <version>0.13.1-SNAPSHOT</version>
+      <version>0.14.1-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.kitesdk</groupId>
       <artifactId>kite-data-hcatalog</artifactId>
-      <version>0.13.1-SNAPSHOT</version>
+      <version>0.14.1-SNAPSHOT</version>
       <optional>true</optional>
     </dependency>
 
@@ -177,7 +177,7 @@
     <dependency>
       <groupId>org.kitesdk</groupId>
       <artifactId>kite-data-core</artifactId>
-      <version>0.13.1-SNAPSHOT</version>
+      <version>0.14.1-SNAPSHOT</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

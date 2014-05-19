@@ -18,6 +18,7 @@ package org.kitesdk.data;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.util.Set;
+import org.kitesdk.data.spi.PartitionStrategyParser;
 import org.kitesdk.data.spi.partition.DayOfMonthFieldPartitioner;
 import org.kitesdk.data.spi.partition.HourFieldPartitioner;
 import org.kitesdk.data.spi.partition.MinuteFieldPartitioner;
@@ -119,6 +120,9 @@ public class PartitionStrategy {
   public int getCardinality() {
     int cardinality = 1;
     for (FieldPartitioner fieldPartitioner : fieldPartitioners) {
+      if (fieldPartitioner.getCardinality() == FieldPartitioner.UNKNOWN_CARDINALITY) {
+        return FieldPartitioner.UNKNOWN_CARDINALITY;
+      }
       cardinality *= fieldPartitioner.getCardinality();
     }
     return cardinality;
@@ -245,8 +249,15 @@ public class PartitionStrategy {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
-        .add("fieldPartitioners", fieldPartitioners).toString();
+    return PartitionStrategyParser.toString(this, false);
+  }
+
+  /**
+   * @param pretty {@code true} to indent and format JSON
+   * @return this PartitionStrategy as its JSON representation
+   */
+  public String toString(boolean pretty) {
+    return PartitionStrategyParser.toString(this, pretty);
   }
 
   /**
@@ -258,8 +269,8 @@ public class PartitionStrategy {
     private final Set<String> names = Sets.newHashSet();
 
     /**
-     * Configure a hash partitioner with the specified number of {@code buckets}
-     * .
+     * Configure a hash partitioner with the specified number of
+     * {@code buckets}.
      *
      * The partition name is the source field name with a "_hash" suffix.
      * For example, hash("color", 34) creates "color_hash" partitions.
@@ -277,8 +288,10 @@ public class PartitionStrategy {
     }
 
     /**
-     * Configure a hash partitioner with the specified number of {@code buckets}
-     * .
+     * Configure a hash partitioner with the specified number of
+     * {@code buckets}. If name is null, the partition name will be the source
+     * field name with a "_hash" suffix. For example, hash("color", null, 34)
+     * will create "color_hash" partitions.
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -290,8 +303,98 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder hash(String sourceName, String name, int buckets) {
+    public Builder hash(String sourceName, @Nullable String name, int buckets) {
       add(new HashFieldPartitioner(sourceName, name, buckets));
+      return this;
+    }
+
+    /**
+     * Configure an identity partitioner.
+     *
+     * The partition name is the source field name with a "_copy" suffix.
+     * For example, identity("color", String.class, 34) creates "color_copy"
+     * partitions.
+     *
+     * @param sourceName
+     *          The entity field name from which to get values to be
+     *          partitioned.
+     * @return An instance of the builder for method chaining.
+     * @see IdentityFieldPartitioner
+     * @since 0.14.0
+     */
+    @SuppressWarnings("unchecked")
+    public Builder identity(String sourceName) {
+      add(new IdentityFieldPartitioner(sourceName, Object.class));
+      return this;
+    }
+
+    /**
+     * Configure an identity partitioner. If name is null, the partition name
+     * will be the source field name with a "_copy" suffix. For example,
+     * identity("color", null, ...) will create "color_copy" partitions.
+     *
+     * @param sourceName
+     *          The entity field name from which to get values to be
+     *          partitioned.
+     * @param name
+     *          A name for the partition field
+     * @return An instance of the builder for method chaining.
+     * @see IdentityFieldPartitioner
+     * @since 0.14.0
+     */
+    @SuppressWarnings("unchecked")
+    public Builder identity(String sourceName, String name) {
+      add(new IdentityFieldPartitioner(sourceName, name, Object.class));
+      return this;
+    }
+
+    /**
+     * Configure an identity partitioner with a cardinality hint of
+     * {@code cardinalityHint}.
+     *
+     * The partition name is the source field name with a "_copy" suffix.
+     * For example, identity("color", String.class, 34) creates "color_copy"
+     * partitions.
+     *
+     * @param sourceName
+     *          The entity field name from which to get values to be
+     *          partitioned.
+     * @param cardinalityHint
+     *          A hint as to the number of partitions that will be created (i.e.
+     *          the number of discrete values for the field {@code name} in the
+     *          data).
+     * @return An instance of the builder for method chaining.
+     * @see IdentityFieldPartitioner
+     * @since 0.14.0
+     */
+    @SuppressWarnings("unchecked")
+    public Builder identity(String sourceName, int cardinalityHint) {
+      add(new IdentityFieldPartitioner(sourceName, Object.class, cardinalityHint));
+      return this;
+    }
+
+    /**
+     * Configure an identity partitioner with a cardinality hint of
+     * {@code cardinalityHint}. If name is null, the partition name will be the source
+     * field name with a "_copy" suffix. For example, identity("color", null, ...)
+     * will create "color_copy" partitions.
+     *
+     * @param sourceName
+     *          The entity field name from which to get values to be
+     *          partitioned.
+     * @param name
+     *          A name for the partition field
+     * @param cardinalityHint
+     *          A hint as to the number of partitions that will be created (i.e.
+     *          the number of discrete values for the field {@code name} in the
+     *          data).
+     * @return An instance of the builder for method chaining.
+     * @see IdentityFieldPartitioner
+     * @since 0.14.0
+     */
+    @SuppressWarnings("unchecked")
+    public Builder identity(String sourceName, String name, int cardinalityHint) {
+      add(new IdentityFieldPartitioner(sourceName, name, Object.class, cardinalityHint));
       return this;
     }
 
@@ -315,20 +418,20 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @see IdentityFieldPartitioner
      * @since 0.8.0
-     * @deprecated will be removed in 0.14.0;
-     *          use {@link #identity(String, String, Class, int)}
+     * @deprecated will be removed  in 0.15.0
      */
     @Deprecated
     @SuppressWarnings("unchecked")
     public <S> Builder identity(String sourceName, Class<S> type, int buckets) {
-      add(new IdentityFieldPartitioner(
-          sourceName, sourceName + "_copy", type, buckets));
+      add(new IdentityFieldPartitioner(sourceName, type, buckets));
       return this;
     }
 
     /**
      * Configure an identity partitioner for a given type with a cardinality hint of
-     * {@code buckets} size.
+     * {@code buckets} size. If name is null, the partition name will be the source
+     * field name with a "_copy" suffix. For example, identity("color", null, ...)
+     * will create "color_copy" partitions.
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -344,7 +447,9 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @see IdentityFieldPartitioner
      * @since 0.8.0
+     * @deprecated will be removed in 0.15.0
      */
+    @Deprecated
     @SuppressWarnings("unchecked")
     public <S> Builder identity(String sourceName, String name, Class<S> type,
                                 int buckets) {
@@ -393,7 +498,8 @@ public class PartitionStrategy {
 
     /**
      * Configure a partitioner for extracting the year from a timestamp field.
-     * The UTC timezone is assumed.
+     * The UTC timezone is assumed. If name is null, the partition entity name
+     * will be "year".
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -403,7 +509,7 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder year(String sourceName, String name) {
+    public Builder year(String sourceName, @Nullable String name) {
       add(new YearFieldPartitioner(sourceName, name));
       return this;
     }
@@ -425,7 +531,8 @@ public class PartitionStrategy {
 
     /**
      * Configure a partitioner for extracting the month from a timestamp field.
-     * The UTC timezone is assumed.
+     * The UTC timezone is assumed. If name is null, the partition entity name
+     * will be "month".
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -435,7 +542,7 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder month(String sourceName, String name) {
+    public Builder month(String sourceName, @Nullable String name) {
       add(new MonthFieldPartitioner(sourceName, name));
       return this;
     }
@@ -457,7 +564,8 @@ public class PartitionStrategy {
 
     /**
      * Configure a partitioner for extracting the day from a timestamp field.
-     * The UTC timezone is assumed.
+     * The UTC timezone is assumed. If name is null, the partition entity name
+     * will be "day".
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -467,7 +575,7 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder day(String sourceName, String name) {
+    public Builder day(String sourceName, @Nullable String name) {
       add(new DayOfMonthFieldPartitioner(sourceName, name));
       return this;
     }
@@ -489,7 +597,8 @@ public class PartitionStrategy {
 
     /**
      * Configure a partitioner for extracting the hour from a timestamp field.
-     * The UTC timezone is assumed.
+     * The UTC timezone is assumed. If name is null, the partition entity name
+     * will be "hour".
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -499,7 +608,7 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder hour(String sourceName, String name) {
+    public Builder hour(String sourceName, @Nullable String name) {
       add(new HourFieldPartitioner(sourceName, name));
       return this;
     }
@@ -521,7 +630,8 @@ public class PartitionStrategy {
 
     /**
      * Configure a partitioner for extracting the minute from a timestamp field.
-     * The UTC timezone is assumed.
+     * The UTC timezone is assumed. If name is null, the partition entity name
+     * will be "minute".
      *
      * @param sourceName
      *          The entity field name from which to get values to be
@@ -531,7 +641,7 @@ public class PartitionStrategy {
      * @return An instance of the builder for method chaining.
      * @since 0.3.0
      */
-    public Builder minute(String sourceName, String name) {
+    public Builder minute(String sourceName, @Nullable String name) {
       add(new MinuteFieldPartitioner(sourceName, name));
       return this;
     }

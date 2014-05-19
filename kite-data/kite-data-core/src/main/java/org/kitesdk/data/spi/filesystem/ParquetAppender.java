@@ -31,7 +31,7 @@ import parquet.hadoop.metadata.CompressionCodecName;
 
 class ParquetAppender<E extends IndexedRecord> implements FileSystemWriter.FileAppender<E> {
 
-  private static final Logger logger = LoggerFactory
+  private static final Logger LOG = LoggerFactory
     .getLogger(ParquetAppender.class);
   private static final int DEFAULT_BLOCK_SIZE = 50 * 1024 * 1024;
 
@@ -57,13 +57,14 @@ class ParquetAppender<E extends IndexedRecord> implements FileSystemWriter.FileA
       if (Hadoop.SnappyCodec.isSnappyNative.<Boolean>invoke(fileSystem.getConf())) {
         codecName = CompressionCodecName.SNAPPY;
       } else {
-        logger.warn("Compression enabled, but Snappy native code not loaded. " +
+        LOG.warn("Compression enabled, but Snappy native code not loaded. " +
             "Parquet file will not be compressed.");
       }
     }
     avroParquetWriter = new AvroParquetWriter<E>(fileSystem.makeQualified(path),
         schema, codecName, DEFAULT_BLOCK_SIZE,
-        ParquetWriter.DEFAULT_PAGE_SIZE);
+        ParquetWriter.DEFAULT_PAGE_SIZE,
+        ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED, fileSystem.getConf());
   }
 
   @Override

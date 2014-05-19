@@ -15,21 +15,11 @@
  */
 package org.kitesdk.data.crunch;
 
-import org.kitesdk.data.Dataset;
-import org.kitesdk.data.Format;
-import org.kitesdk.data.Formats;
-import org.kitesdk.data.spi.filesystem.FileSystemDataset;
 import com.google.common.annotations.Beta;
-import com.google.common.collect.Lists;
-import java.util.List;
-import org.apache.avro.generic.GenericData;
 import org.apache.crunch.Target;
 import org.apache.crunch.io.ReadableSource;
-import org.apache.crunch.io.avro.AvroFileSource;
-import org.apache.crunch.io.parquet.AvroParquetFileSource;
-import org.apache.crunch.types.avro.AvroType;
-import org.apache.crunch.types.avro.Avros;
-import org.apache.hadoop.fs.Path;
+import org.kitesdk.data.Dataset;
+import org.kitesdk.data.View;
 
 /**
  * <p>
@@ -43,54 +33,36 @@ public class CrunchDatasets {
   /**
    * Expose the given {@link Dataset} as a Crunch {@link ReadableSource}.
    *
-   * Only the FileSystem {@code Dataset} implementation is supported and the
-   * file format must be {@code Formats.PARQUET} or {@code Formats.AVRO}.
-   *
    * @param dataset the dataset to read from
    * @param type    the Java type of the entities in the dataset
    * @param <E>     the type of entity produced by the source
-   * @return the {@link ReadableSource}, or <code>null</code> if the dataset is not
-   * filesystem-based.
+   * @return a {@link ReadableSource} for the dataset
    */
   @SuppressWarnings("unchecked")
   public static <E> ReadableSource<E> asSource(Dataset<E> dataset, Class<E> type) {
-    if (dataset instanceof FileSystemDataset) {
-      List<Path> paths = Lists.newArrayList(
-          ((FileSystemDataset) dataset).dirIterator());
+    return new DatasetSourceTarget<E>(dataset, type);
+  }
 
-      AvroType<E> avroType;
-      if (type.isAssignableFrom(GenericData.Record.class)) {
-        avroType = (AvroType<E>) Avros.generics(dataset.getDescriptor().getSchema());
-      } else {
-        avroType = Avros.records(type);
-      }
-      final Format format = dataset.getDescriptor().getFormat();
-      if (Formats.PARQUET.equals(format)) {
-        return new AvroParquetFileSource(paths, avroType);
-      } else if (Formats.AVRO.equals(format)) {
-        return new AvroFileSource<E>(paths, avroType);
-      } else {
-        throw new UnsupportedOperationException(
-            "Not a supported format: " + format);
-      }
-    }
-    return null;
+  /**
+   * Expose the given {@link View} as a Crunch {@link ReadableSource}.
+   *
+   * @param view the view to read from
+   * @param type    the Java type of the entities in the dataset
+   * @param <E>     the type of entity produced by the source
+   * @return a {@link ReadableSource} for the view
+   *
+   * @since 0.14.0
+   */
+  public static <E> ReadableSource<E> asSource(View<E> view, Class<E> type) {
+    return new DatasetSourceTarget<E>(view, type);
   }
 
   /**
    * Expose the given {@link Dataset} as a Crunch {@link Target}.
    *
-   * Only the FileSystem {@code Dataset} implementation is supported and the
-   * file format must be {@code Formats.PARQUET} or {@code Formats.AVRO}. In
-   * addition, the given {@code Dataset} must not be partitioned,
-   * <strong>or</strong> must be a leaf partition in the partition hierarchy.
-   *
-   * <strong>The {@code Target} returned by this method will not write to
-   * sub-partitions.</strong>
-   *
    * @param dataset the dataset to write to
-   * @return the {@link Target}, or <code>null</code> if the dataset is not
-   * filesystem-based.
+   * @param <E>     the type of entity stored in the dataset
+   * @return a {@link Target} for the dataset
    */
   public static <E> Target asTarget(Dataset<E> dataset) {
     return asTarget(dataset, false);
@@ -115,5 +87,18 @@ public class CrunchDatasets {
   
   public static <E> Target asTarget(String datasetUri, boolean freezeTarget) {
     return new DatasetTarget<E>(datasetUri, freezeTarget);
+  }
+
+  /**
+   * Expose the given {@link View} as a Crunch {@link Target}.
+   *
+   * @param view the view to write to
+   * @param <E>  the type of entity stored in the view
+   * @return a {@link Target} for the view
+   *
+   * @since 0.14.0
+   */
+  public static <E> Target asTarget(View<E> view) {
+    return new DatasetTarget<E>(view);
   }
 }

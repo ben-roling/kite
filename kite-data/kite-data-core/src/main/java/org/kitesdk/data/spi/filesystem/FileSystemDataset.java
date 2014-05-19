@@ -29,13 +29,15 @@ import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.DatasetRepositoryException;
 import org.kitesdk.data.Datasets;
 import org.kitesdk.data.Datasets.LoadFlag;
-import org.kitesdk.data.PartitionAlreadyExistsException;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.Constraints;
 import org.kitesdk.data.spi.FieldPartitioner;
+import org.kitesdk.data.spi.InputFormatAccessor;
+import org.kitesdk.data.spi.LastModifiedAccessor;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.PartitionListener;
 
@@ -48,6 +50,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.kitesdk.data.spi.SizeAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,9 +60,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
-public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeable<FileSystemDataset<E>> {
+public class FileSystemDataset<E> extends AbstractDataset<E> implements
+    Mergeable<FileSystemDataset<E>>, InputFormatAccessor<E>, LastModifiedAccessor,
+    SizeAccessor {
 
-  private static final Logger logger = LoggerFactory
+  private static final Logger LOG = LoggerFactory
     .getLogger(FileSystemDataset.class);
 
   private final FileSystem fileSystem;
@@ -159,6 +164,11 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
   }
   
   @Override
+  public FileSystemView<E> filter(Constraints c) {
+    return unbounded.filter(c);
+  }
+
+  @Override
   @Nullable
   @Deprecated
   public Dataset<E> getPartition(PartitionKey key, boolean allowCreate) {
@@ -166,7 +176,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
       "Attempt to get a partition on a non-partitioned dataset (name:%s)",
       name);
 
-    logger.debug("Loading partition for key {}, allowCreate:{}", new Object[] {
+    LOG.debug("Loading partition for key {}, allowCreate:{}", new Object[] {
       key, allowCreate });
 
     Path partitionDirectory = getPartitionDirectory(key);
@@ -224,7 +234,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     Preconditions.checkArgument(key != null, "Partition key may not be null");
     Preconditions.checkState(!frozen, "Dataset must not be frozen");
 
-    logger.debug("Dropping partition with key:{} dataset:{}", key, name);
+    LOG.debug("Dropping partition with key:{} dataset:{}", key, name);
 
     Path partitionDirectory = toDirectoryName(directory, key);
 
@@ -325,7 +335,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
           if (!fileSystem.exists(newPartitionDirectory)) {
             fileSystem.mkdirs(newPartitionDirectory);
           }
-          logger.debug("Renaming {} to {}", path, newPath);
+          LOG.debug("Renaming {} to {}", path, newPath);
           boolean renameOk = fileSystem.rename(path, newPath);
           if (!renameOk) {
             throw new DatasetException("Dataset merge failed during rename of " + path +
@@ -373,8 +383,8 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
   }
 
   @Override
-  public InputFormat<E, Void> getDelegateInputFormat() {
-    return new FileSystemDatasetKeyInputFormat<E>(this);
+  public InputFormat<E, Void> getInputFormat() {
+    return new FileSystemViewKeyInputFormat<E>(this);
   }
 
   @SuppressWarnings("unchecked")
@@ -407,6 +417,40 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements Mergeabl
     values.add(convert.valueForDirname(fp, dir.getName()));
 
     return Accessor.getDefault().newPartitionKey(values.toArray());
+  }
+
+  @Override
+  public long getSize() {
+    long size = 0;
+    for (Iterator<Path> i = dirIterator(); i.hasNext(); ) {
+      Path dir = i.next();
+      try {
+        for (FileStatus st : fileSystem.listStatus(dir)) {
+          size += st.getLen();
+        }
+      } catch (IOException e) {
+        throw new DatasetIOException("Cannot find size of " + dir, e);
+      }
+    }
+    return size;
+  }
+
+  @Override
+  public long getLastModified() {
+    long lastMod = -1;
+    for (Iterator<Path> i = dirIterator(); i.hasNext(); ) {
+      Path dir = i.next();
+      try {
+        for (FileStatus st : fileSystem.listStatus(dir)) {
+          if (lastMod < st.getModificationTime()) {
+            lastMod = st.getModificationTime();
+          }
+        }
+      } catch (IOException e) {
+        throw new DatasetIOException("Cannot find last modified time of of " + dir, e);
+      }
+    }
+    return lastMod;
   }
   
   @Override

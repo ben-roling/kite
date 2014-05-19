@@ -52,11 +52,24 @@ import org.slf4j.LoggerFactory;
 public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparator<T> {
   private static final Logger LOG = LoggerFactory.getLogger(FieldPartitioner.class);
 
+  public static final int UNKNOWN_CARDINALITY = -1;
+
   private final String sourceName;
   private final String name;
   private final Class<S> sourceType;
   private final Class<T> type;
   private final int cardinality;
+
+  protected FieldPartitioner(String sourceName, String name,
+                             Class<S> sourceType, Class<T> type) {
+    Preconditions.checkArgument(!sourceName.equals(name),
+        "Source name and partition name cannot be the same");
+    this.sourceName = sourceName;
+    this.name = name;
+    this.sourceType = sourceType;
+    this.type = type;
+    this.cardinality = UNKNOWN_CARDINALITY;
+  }
 
   protected FieldPartitioner(String sourceName, String name,
       Class<S> sourceType, Class<T> type, int cardinality) {
@@ -111,10 +124,28 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    * </p>
    * @since 0.3.0
    *
-   * @deprecated will be removed in 0.14.0
+   * @deprecated will be removed with the partition API
    */
   @Deprecated
-  public abstract T valueFromString(String stringValue);
+  public T valueFromString(String stringValue, Class<? extends T> expectedType) {
+    Preconditions.checkArgument(getType().isAssignableFrom(expectedType),
+        "Bad expected type: " + expectedType);
+    return valueFromString(stringValue);
+  }
+
+  /**
+   * <p>
+   * Retrieve the value for the field from the string representation.
+   * </p>
+   * @since 0.3.0
+   *
+   * @deprecated will be removed with the partition API
+   */
+  @Deprecated
+  protected T valueFromString(String stringValue) {
+    throw new UnsupportedOperationException(
+        "Implementation did not override valueFromString: " + getClass());
+  }
 
   /**
    * <p>
@@ -151,6 +182,17 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    */
   public Class<T> getType() {
     return type;
+  }
+
+  /**
+   * <p>
+   * The type of the target field, which is the type of the return value of the
+   * partition function.
+   * </p>
+   * @since 0.8.0
+   */
+  public Class<? extends T> getType(Class<? extends S> sourceType) {
+    return getType();
   }
 
   /**

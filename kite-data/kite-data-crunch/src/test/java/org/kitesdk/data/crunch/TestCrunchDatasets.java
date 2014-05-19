@@ -19,10 +19,8 @@ import com.google.common.io.Files;
 import java.util.Arrays;
 import java.util.Collection;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
-import org.junit.Assume;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.kitesdk.data.Dataset;
@@ -32,6 +30,7 @@ import org.kitesdk.data.Formats;
 import org.kitesdk.data.MiniDFSTest;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
+import org.kitesdk.data.View;
 import junit.framework.Assert;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
@@ -106,11 +105,6 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
 
   @Test
   public void testGenericParquet() throws IOException {
-    // Parquet fails when testing with HDFS because
-    // parquet.hadoop.ParquetReader calls new Configuration(), which does
-    // not work with the mini-cluster (not set up through env).
-    Assume.assumeTrue(fileSystem instanceof LocalFileSystem);
-
     Dataset<Record> inputDataset = repo.create("in", new DatasetDescriptor.Builder()
         .schema(USER_SCHEMA).format(Formats.PARQUET).build());
     Dataset<Record> outputDataset = repo.create("out", new DatasetDescriptor.Builder()
@@ -131,11 +125,6 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
 
   @Test
   public void testPartitionedSource() throws IOException {
-    // Parquet fails when testing with HDFS because
-    // parquet.hadoop.ParquetReader calls new Configuration(), which does
-    // not work with the mini-cluster (not set up through env).
-    Assume.assumeTrue(fileSystem instanceof LocalFileSystem);
-
     PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
         "username", 2).build();
 
@@ -211,5 +200,54 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
     Dataset<Record> outputPart0 = outputDataset.getPartition(key, false);
     Assert.assertNotNull(outputPart0);
     Assert.assertEquals(5, datasetSize(outputPart0));
+  }
+
+  @Test
+  public void testSourceView() throws IOException {
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
+        "username", 2).build();
+
+    Dataset<Record> inputDataset = repo.create("in", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+    Dataset<Record> outputDataset = repo.create("out", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).format(Formats.PARQUET).build());
+
+    writeTestUsers(inputDataset, 10);
+
+    View<Record> inputView = inputDataset.with("username", "test-0");
+    Assert.assertEquals(1, datasetSize(inputView));
+
+    Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
+    PCollection<GenericData.Record> data = pipeline.read(
+        CrunchDatasets.asSource(inputView, GenericData.Record.class));
+    pipeline.write(data, CrunchDatasets.asTarget(outputDataset), Target.WriteMode.APPEND);
+    pipeline.run();
+
+    Assert.assertEquals(1, datasetSize(outputDataset));
+  }
+
+  @Test
+  public void testTargetView() throws IOException {
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
+        "username", 2).build();
+
+    Dataset<Record> inputDataset = repo.create("in", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+    Dataset<Record> outputDataset = repo.create("out", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+
+    writeTestUsers(inputDataset, 10);
+
+    View<Record> inputView = inputDataset.with("username", "test-0");
+    Assert.assertEquals(1, datasetSize(inputView));
+    View<Record> outputView = outputDataset.with("username", "test-0");
+
+    Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
+    PCollection<GenericData.Record> data = pipeline.read(
+        CrunchDatasets.asSource(inputView, GenericData.Record.class));
+    pipeline.write(data, CrunchDatasets.asTarget(outputView), Target.WriteMode.APPEND);
+    pipeline.run();
+
+    Assert.assertEquals(1, datasetSize(outputDataset));
   }
 }

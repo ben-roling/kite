@@ -55,7 +55,7 @@ import org.kitesdk.data.spi.FieldPartitioner;
 @RunWith(Parameterized.class)
 public class TestFileSystemDataset extends MiniDFSTest {
 
-  private static final Logger logger = LoggerFactory
+  private static final Logger LOG = LoggerFactory
     .getLogger(TestFileSystemDataset.class);
 
   @Parameterized.Parameters

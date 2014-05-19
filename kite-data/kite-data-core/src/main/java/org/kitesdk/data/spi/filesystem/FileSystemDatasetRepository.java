@@ -43,6 +43,7 @@ import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.kitesdk.data.spi.SchemaUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +82,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FileSystemDatasetRepository extends AbstractDatasetRepository {
 
-  private static final Logger logger = LoggerFactory
+  private static final Logger LOG = LoggerFactory
     .getLogger(FileSystemDatasetRepository.class);
 
   private final MetadataProvider metadataProvider;
@@ -134,7 +135,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
 
     FileSystemUtil.ensureLocationExists(newDescriptor, conf);
 
-    logger.debug("Created dataset:{} schema:{} datasetPath:{}", new Object[] {
+    LOG.debug("Created dataset:{} schema:{} datasetPath:{}", new Object[] {
         name, newDescriptor.getSchema(), location.toString() });
 
     return new FileSystemDataset.Builder()
@@ -190,7 +191,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
     DatasetDescriptor updatedDescriptor = metadataProvider.update(name, descriptor);
     updatedDescriptor = addRepositoryUri(updatedDescriptor);
 
-    logger.debug("Updated dataset:{} schema:{} datasetPath:{}", new Object[] {
+    LOG.debug("Updated dataset:{} schema:{} datasetPath:{}", new Object[] {
         name, updatedDescriptor.getSchema(),
         updatedDescriptor.getLocation().toString() });
 
@@ -209,7 +210,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
   public <E> Dataset<E> load(String name) {
     Preconditions.checkNotNull(name, "Dataset name cannot be null");
 
-    logger.debug("Loading dataset:{}", name);
+    LOG.debug("Loading dataset:{}", name);
 
     DatasetDescriptor descriptor = metadataProvider.load(name);
     descriptor = addRepositoryUri(descriptor);
@@ -224,7 +225,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
         .partitionListener(getPartitionListener())
         .build();
 
-    logger.debug("Loaded dataset:{}", ds);
+    LOG.debug("Loaded dataset:{}", ds);
 
     return ds;
   }
@@ -233,7 +234,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
   public boolean delete(String name) {
     Preconditions.checkNotNull(name, "Dataset name cannot be null");
 
-    logger.debug("Deleting dataset:{}", name);
+    LOG.debug("Deleting dataset:{}", name);
 
     DatasetDescriptor descriptor;
     try {
@@ -300,7 +301,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
    * @return a partition key representing the partition at the given path
    * @since 0.4.0
    */
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings({"unchecked", "deprecation"})
   public static PartitionKey partitionKeyForPath(Dataset dataset, URI partitionPath) {
     Preconditions.checkState(dataset.getDescriptor().isPartitioned(),
         "Attempt to get a partition on a non-partitioned dataset (name:%s)",
@@ -330,6 +331,7 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
           fieldPartitioners.size()));
     }
 
+    Schema schema = dataset.getDescriptor().getSchema();
     List<Object> values = Lists.newArrayList();
     int i = 0;
     for (String part : parts) {
@@ -346,8 +348,9 @@ public class FileSystemDatasetRepository extends AbstractDatasetRepository {
             "'%s' in partition %s.", fieldName, partitionUri));
       }
       String stringValue = split.next();
-      Object value = fp.valueFromString(stringValue);
-      values.add(value);
+
+      values.add(fp.valueFromString(stringValue,
+          SchemaUtil.getPartitionType(fp, schema)));
     }
     return org.kitesdk.data.impl.Accessor.getDefault().newPartitionKey(
         values.toArray(new Object[values.size()]));

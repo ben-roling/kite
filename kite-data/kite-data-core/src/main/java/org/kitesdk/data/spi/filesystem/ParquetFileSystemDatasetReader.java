@@ -41,7 +41,7 @@ class ParquetFileSystemDatasetReader<E extends IndexedRecord> extends AbstractDa
 
   private E next;
 
-  private static final Logger logger = LoggerFactory
+  private static final Logger LOG = LoggerFactory
     .getLogger(ParquetFileSystemDatasetReader.class);
 
   public ParquetFileSystemDatasetReader(FileSystem fileSystem, Path path, Schema schema) {
@@ -61,10 +61,11 @@ class ParquetFileSystemDatasetReader<E extends IndexedRecord> extends AbstractDa
     Preconditions.checkState(state.equals(ReaderWriterState.NEW),
       "A reader may not be opened more than once - current state:%s", state);
 
-    logger.debug("Opening reader on path:{}", path);
+    LOG.debug("Opening reader on path:{}", path);
 
     try {
-      reader = new AvroParquetReader<E>(fileSystem.makeQualified(path));
+      reader = new AvroParquetReader<E>(
+          fileSystem.getConf(), fileSystem.makeQualified(path));
     } catch (IOException e) {
       throw new DatasetReaderException("Unable to create reader path:" + path, e);
     }
@@ -104,7 +105,7 @@ class ParquetFileSystemDatasetReader<E extends IndexedRecord> extends AbstractDa
       return;
     }
 
-    logger.debug("Closing reader on path:{}", path);
+    LOG.debug("Closing reader on path:{}", path);
 
     try {
       reader.close();

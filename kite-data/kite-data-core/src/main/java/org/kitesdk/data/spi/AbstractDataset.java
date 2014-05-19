@@ -39,7 +39,7 @@ import com.google.common.base.Preconditions;
 @Immutable
 public abstract class AbstractDataset<E> implements Dataset<E>, RefinableView<E> {
 
-  private static final Logger logger = LoggerFactory.getLogger(AbstractDataset.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractDataset.class);
 
   protected abstract RefinableView<E> asRefinableView();
 
@@ -48,18 +48,20 @@ public abstract class AbstractDataset<E> implements Dataset<E>, RefinableView<E>
     return this;
   }
 
+  public abstract AbstractRefinableView<E> filter(Constraints c);
+
   @Override
   public DatasetWriter<E> newWriter() {
     Preconditions.checkState(!isFrozen(), "Dataset must not be frozen");
     
-    logger.debug("Getting writer to dataset:{}", this);
+    LOG.debug("Getting writer to dataset:{}", this);
 
     return asRefinableView().newWriter();
   }
 
   @Override
   public DatasetReader<E> newReader() {
-    logger.debug("Getting reader for dataset:{}", this);
+    LOG.debug("Getting reader for dataset:{}", this);
 
     return asRefinableView().newReader();
   }
@@ -92,10 +94,6 @@ public abstract class AbstractDataset<E> implements Dataset<E>, RefinableView<E>
   @Override
   public RefinableView<E> toBefore(String name, Comparable value) {
     return asRefinableView().toBefore(name, value);
-  }
-
-  public InputFormat<E, Void> getDelegateInputFormat() {
-    throw new UnsupportedOperationException("No delegate input format defined.");
   }
 
   @Override

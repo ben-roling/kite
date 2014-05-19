@@ -16,8 +16,10 @@
 package org.kitesdk.data.mapreduce;
 
 import com.google.common.annotations.Beta;
+
 import java.io.IOException;
 import java.util.List;
+
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -27,8 +29,13 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.kitesdk.data.Dataset;
+import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.Datasets;
+import org.kitesdk.data.View;
 import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.AbstractRefinableView;
+import org.kitesdk.data.spi.Constraints;
+import org.kitesdk.data.spi.InputFormatAccessor;
 
 /**
  * A MapReduce {@code InputFormat} for reading from a {@link Dataset}.
@@ -43,12 +50,27 @@ public class DatasetKeyInputFormat<E> extends InputFormat<E, Void>
     implements Configurable {
 
   public static final String KITE_DATASET_URI = "kite.inputDatasetUri";
+  public static final String KITE_CONSTRAINTS = "kite.inputConstraints";
 
   private Configuration conf;
   private InputFormat<E, Void> delegate;
 
   public static void setDatasetUri(Job job, String uri) {
     job.getConfiguration().set(KITE_DATASET_URI, uri);
+  }
+
+  public static <E> void setView(Job job, View<E> view) {
+    setView(job.getConfiguration(), view);
+  }
+
+  public static <E> void setView(Configuration conf, View<E> view) {
+    if (view instanceof AbstractRefinableView) {
+      conf.set(KITE_CONSTRAINTS,
+          Constraints.serialize(((AbstractRefinableView) view).getConstraints()));
+    } else {
+      throw new UnsupportedOperationException("Implementation " +
+          "does not provide InputFormat support. View: " + view);
+    }
   }
 
   @Override
@@ -61,12 +83,31 @@ public class DatasetKeyInputFormat<E> extends InputFormat<E, Void>
     conf = configuration;
     Dataset<E> dataset = loadDataset(configuration);
 
-    if (dataset instanceof AbstractDataset) {
-      delegate = ((AbstractDataset<E>) dataset).getDelegateInputFormat();
+    String constraintsString = conf.get(KITE_CONSTRAINTS);
+    if (constraintsString != null) {
+      delegate = getDelegateInputFormatForView(dataset, constraintsString);
     } else {
-      throw new UnsupportedOperationException("Incompatible Dataset: implementation " +
-          "does not provide InputFormat support. Dataset: " + dataset);
+      delegate = getDelegateInputFormat(dataset);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private InputFormat<E, Void> getDelegateInputFormat(View<E> view) {
+    if (view instanceof InputFormatAccessor) {
+      return ((InputFormatAccessor<E>) view).getInputFormat();
+    }
+    throw new UnsupportedOperationException("Implementation " +
+          "does not provide InputFormat support. View: " + view);
+  }
+
+  @SuppressWarnings("unchecked")
+  private InputFormat<E, Void> getDelegateInputFormatForView(Dataset<E> dataset,
+      String constraintsString) {
+    Constraints constraints = Constraints.deserialize(constraintsString);
+    if (dataset instanceof AbstractDataset) {
+      return getDelegateInputFormat(((AbstractDataset) dataset).filter(constraints));
+    }
+    throw new DatasetException("Cannot find view from constraints for " + dataset);
   }
 
   private static <E> Dataset<E> loadDataset(Configuration conf) {

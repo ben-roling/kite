@@ -28,6 +28,8 @@ import org.apache.crunch.types.avro.AvroType;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
+import org.kitesdk.data.View;
+import org.kitesdk.data.mapreduce.DatasetKeyInputFormat;
 import org.kitesdk.data.mapreduce.DatasetKeyOutputFormat;
 
 class DatasetTarget<E> implements MapReduceTarget {
@@ -38,6 +40,16 @@ class DatasetTarget<E> implements MapReduceTarget {
     this.formatBundle = FormatBundle.forOutput(DatasetKeyOutputFormat.class);
     formatBundle.set(DatasetKeyOutputFormat.KITE_DATASET_URI, datasetUri);
     formatBundle.set(DatasetKeyOutputFormat.KITE_FREEZE_DATASET, Boolean.toString(freeze));
+  }
+
+  public DatasetTarget(View<E> view) {
+    this.formatBundle = FormatBundle.forOutput(DatasetKeyOutputFormat.class);
+    formatBundle.set(DatasetKeyOutputFormat.KITE_DATASET_URI, view.getDataset().getUri());
+
+    Configuration conf = new Configuration();
+    DatasetKeyOutputFormat.setView(conf, view);
+    formatBundle.set(DatasetKeyOutputFormat.KITE_CONSTRAINTS,
+        conf.get(DatasetKeyOutputFormat.KITE_CONSTRAINTS));
   }
 
   @Override

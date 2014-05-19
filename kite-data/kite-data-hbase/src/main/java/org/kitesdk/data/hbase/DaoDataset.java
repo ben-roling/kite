@@ -26,8 +26,11 @@ import org.kitesdk.data.RefinableView;
 import org.kitesdk.data.hbase.impl.Dao;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.Constraints;
+import org.kitesdk.data.spi.InputFormatAccessor;
 
-class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E> {
+class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>,
+    InputFormatAccessor<E> {
 
   private String name;
   private Dao<E> dao;
@@ -76,6 +79,11 @@ class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>
   }
 
   @Override
+  public DaoView<E> filter(Constraints c) {
+    return unbounded.filter(c);
+  }
+
+  @Override
   @SuppressWarnings("deprecation")
   public E get(Key key) {
     return dao.get(keyFor(getDescriptor().getPartitionStrategy(), key));
@@ -116,8 +124,8 @@ class DaoDataset<E> extends AbstractDataset<E> implements RandomAccessDataset<E>
   }
 
   @Override
-  public InputFormat<E, Void> getDelegateInputFormat() {
-    return new HBaseDatasetKeyInputFormat<E>(this);
+  public InputFormat<E, Void> getInputFormat() {
+    return new HBaseViewKeyInputFormat<E>(this);
   }
 
   @Override

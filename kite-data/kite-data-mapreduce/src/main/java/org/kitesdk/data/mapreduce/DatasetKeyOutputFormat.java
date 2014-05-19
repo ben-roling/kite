@@ -36,13 +36,18 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.kitesdk.compat.Hadoop;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
+import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetRepositories;
 import org.kitesdk.data.DatasetRepository;
 import org.kitesdk.data.DatasetWriter;
 import org.kitesdk.data.Datasets;
 import org.kitesdk.data.PartitionKey;
+import org.kitesdk.data.View;
 import org.kitesdk.data.Datasets.LoadFlag;
 import org.kitesdk.data.impl.Accessor;
+import org.kitesdk.data.spi.AbstractDataset;
+import org.kitesdk.data.spi.AbstractRefinableView;
+import org.kitesdk.data.spi.Constraints;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Mergeable;
 import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
@@ -60,9 +65,24 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
   public static final String KITE_DATASET_URI = "kite.outputDatasetUri";
   public static final String KITE_FREEZE_DATASET = "kite.freezeDataset";
+  public static final String KITE_CONSTRAINTS = "kite.outputConstraints";
 
   public static void setDatasetUri(Job job, String uri) {
     job.getConfiguration().set(KITE_DATASET_URI, uri);
+  }
+
+  public static <E> void setView(Job job, View<E> view) {
+    setView(job.getConfiguration(), view);
+  }
+
+  public static <E> void setView(Configuration conf, View<E> view) {
+    if (view instanceof AbstractRefinableView) {
+      conf.set(KITE_CONSTRAINTS,
+          Constraints.serialize(((AbstractRefinableView) view).getConstraints()));
+    } else {
+      throw new UnsupportedOperationException("Implementation " +
+          "does not provide InputFormat support. View: " + view);
+    }
   }
 
   static class DatasetRecordWriter<E> extends RecordWriter<E, Void> {
@@ -70,8 +90,8 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     private final DatasetWriter<E> datasetWriter;
     private final Map<String, Object> partitionFieldValues;
 
-    public DatasetRecordWriter(Dataset<E> dataset, Map<String, Object> partitionFieldValues) {
-      this.datasetWriter = dataset.newWriter();
+    public DatasetRecordWriter(View<E> view, Map<String, Object> partitionFieldValues) {
+      this.datasetWriter = view.newWriter();
       this.datasetWriter.open();
       this.partitionFieldValues = partitionFieldValues;
     }
@@ -182,6 +202,7 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public RecordWriter<E, Void> getRecordWriter(TaskAttemptContext taskAttemptContext) {
     Configuration conf = Hadoop.TaskAttemptContext
         .getConfiguration.invoke(taskAttemptContext);
@@ -209,10 +230,19 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     else {
       dataset = loadDataset(conf);
     }
-
-    return new DatasetRecordWriter<E>(dataset, partitionFieldValues);
+	
+  	String constraintsString = conf.get(KITE_CONSTRAINTS);
+  	if (constraintsString != null) {
+      Constraints constraints = Constraints.deserialize(constraintsString);
+  	  if (dataset instanceof AbstractDataset) {
+        return new DatasetRecordWriter<E>(((AbstractDataset) dataset).filter(constraints), partitionFieldValues);
+      }
+      throw new DatasetException("Cannot find view from constraints for " + dataset);
+    } else {
+      return new DatasetRecordWriter<E>(dataset, partitionFieldValues);
+    }
   }
-  
+
   private static PartitionKey getPartitionKey(Configuration conf) {
     String datasetUri = conf.get(KITE_DATASET_URI);
     return Accessor.getDefault().getPartitionKey(datasetUri);

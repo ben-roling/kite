@@ -27,9 +27,16 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
 import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.codec.binary.Base64;
+import org.kitesdk.data.DatasetException;
+import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 import org.slf4j.Logger;
@@ -278,6 +285,7 @@ public class Constraints implements Serializable{
     for (Map.Entry<String, Predicate> entry : constraints.entrySet()) {
       Collection<FieldPartitioner> fps = partitioners.get(entry.getKey());
       if (fps.isEmpty()) {
+        LOG.debug("No field partitioners for key {}", entry.getKey());
         return false;
       }
 
@@ -289,6 +297,8 @@ public class Constraints implements Serializable{
             TimeDomain domain = TimeDomain.get(strategy, entry.getKey());
             Predicate strict = domain.projectStrict(predicate);
             Predicate permissive = domain.project(predicate);
+            LOG.debug("Time predicate strict: {}", strict);
+            LOG.debug("Time predicate permissive: {}", permissive);
             satisfied = strict != null && strict.equals(permissive);
             break;
           } else {
@@ -302,6 +312,7 @@ public class Constraints implements Serializable{
         }
         // this predicate cannot be satisfied by the partition information
         if (!satisfied) {
+          LOG.debug("Predicate not satisfied: {}", predicate);
           return false;
         }
       }
@@ -426,6 +437,30 @@ public class Constraints implements Serializable{
     in.defaultReadObject();
     schema = new Parser().parse(in.readUTF());
     constraints = ImmutableMap.copyOf(ConstraintsSerialization.readConstraints(schema, in));
+  }
+
+  public static String serialize(Constraints constraints) {
+    try {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      ObjectOutputStream out = new ObjectOutputStream(baos);
+      out.writeObject(constraints);
+      out.close();
+      return Base64.encodeBase64String(baos.toByteArray());
+    } catch (IOException e) {
+      throw new DatasetIOException("Cannot serialize constraints " + constraints, e);
+    }
+  }
+
+  public static Constraints deserialize(String s) {
+    try {
+      ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decodeBase64(s));
+      ObjectInputStream in = new ObjectInputStream(bais);
+      return (Constraints) in.readObject();
+    } catch (IOException e) {
+      throw new DatasetIOException("Cannot deserialize constraints", e);
+    } catch (ClassNotFoundException e) {
+      throw new DatasetException("Cannot deserialize constraints", e);
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -569,6 +604,7 @@ public class Constraints implements Serializable{
         Predicate<Marker> timePredicate = TimeDomain
             .get(strategy, sourceName)
             .project(predicates.get(sourceName));
+        LOG.debug("Time predicate: {}", timePredicate);
         if (timePredicate != null && !timePredicate.apply(key)) {
           return false;
         }

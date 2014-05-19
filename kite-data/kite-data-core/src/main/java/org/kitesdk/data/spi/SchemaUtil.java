@@ -25,11 +25,12 @@ import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.specific.SpecificData;
 import org.kitesdk.data.DatasetDescriptor;
+import org.kitesdk.data.FieldMapping;
 import org.kitesdk.data.PartitionStrategy;
 
 public class SchemaUtil {
 
-  public static final ImmutableMap<Schema.Type, Class<?>> TYPE_TO_CLASS =
+  private static final ImmutableMap<Schema.Type, Class<?>> TYPE_TO_CLASS =
       ImmutableMap.<Schema.Type, Class<?>>builder()
           .put(Schema.Type.BOOLEAN, Boolean.class)
           .put(Schema.Type.INT, Integer.class)
@@ -39,6 +40,23 @@ public class SchemaUtil {
           .put(Schema.Type.STRING, String.class)
           .put(Schema.Type.BYTES, ByteBuffer.class)
           .build();
+
+  public static Class<?> getClassForType(Schema.Type type) {
+    return TYPE_TO_CLASS.get(type);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <S> Class<? extends S> getSourceType(FieldPartitioner<S, ?> fp, Schema schema) {
+    return (Class<S>) getClassForType(
+        schema.getField(fp.getSourceName()).schema().getType());
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <S, T> Class<? extends T> getPartitionType(FieldPartitioner<S, T> fp, Schema schema) {
+    Class<? extends S> inputType = (Class<S>) getClassForType(
+        schema.getField(fp.getSourceName()).schema().getType());
+    return fp.getType(inputType);
+  }
 
   /**
    * Checks that a schema type should produce an object of the expected class.
@@ -54,6 +72,22 @@ public class SchemaUtil {
                                                      Class<?> expectedClass) {
     Class<?> typeClass = TYPE_TO_CLASS.get(type);
     return typeClass != null && expectedClass.isAssignableFrom(typeClass);
+  }
+
+  public static boolean isConsistentWithMappingType(
+      Schema.Type type, FieldMapping.MappingType mappingType) {
+    switch (mappingType) {
+      case COUNTER:
+      case OCC_VERSION:
+        return (type == Schema.Type.INT || type == Schema.Type.LONG);
+      case KEY_AS_COLUMN:
+        return (type == Schema.Type.MAP || type == Schema.Type.RECORD);
+      case KEY:
+        // must be a primitive type
+        return TYPE_TO_CLASS.containsKey(type);
+      default:
+        return true;
+    }
   }
 
   /**
