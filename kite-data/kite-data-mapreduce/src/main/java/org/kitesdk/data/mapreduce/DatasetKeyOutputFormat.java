@@ -79,9 +79,6 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     if (view instanceof AbstractRefinableView) {
       conf.set(KITE_CONSTRAINTS,
           Constraints.serialize(((AbstractRefinableView) view).getConstraints()));
-    } else {
-      throw new UnsupportedOperationException("Implementation " +
-          "does not provide InputFormat support. View: " + view);
     }
   }
 
