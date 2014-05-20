@@ -56,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -368,7 +369,18 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements
     URI relativePath = updateTopLevel.getDirectory().toUri().relativize(update.getDirectory().toUri());
     Path newPath = new Path(directory, new Path(relativePath));
     try {
-      fileSystem.rename(update.getDirectory(), newPath);
+      try {
+        fileSystem.getFileStatus(newPath);
+        throw new DatasetException("Partition already exists during merge of " + directory +
+            " to " + newPath);
+      }
+      catch (FileNotFoundException e) {
+        // expected
+      }
+      if (!fileSystem.rename(update.getDirectory(), newPath)) {
+        throw new DatasetException("Dataset merge failed during rename of " + directory +
+            " to " + newPath);
+      };
     } catch (IOException e) {
       throw new DatasetException("Dataset merge failed during rename of " + directory +
           " to " + newPath);
