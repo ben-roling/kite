@@ -27,6 +27,7 @@ import org.kitesdk.data.spi.filesystem.TestFileSystemDatasetRepository;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -47,8 +48,8 @@ public class TestExternalHCatalogDatasetRepository extends TestFileSystemDataset
 
   @Override
   public DatasetRepository newRepo(MetadataProvider provider) {
-    // use null URI because TestDatasetRepositories expects no URI
-    return new HCatalogExternalDatasetRepository(conf, provider, null);
+    return new HCatalogExternalDatasetRepository(conf, provider,
+        URI.create("repo:hive:" + Path.getPathWithoutSchemeAndAuthority(testDirectory)));
   }
 
   @Override

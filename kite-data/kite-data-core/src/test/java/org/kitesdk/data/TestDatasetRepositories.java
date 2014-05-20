@@ -16,9 +16,12 @@
 package org.kitesdk.data;
 
 import org.kitesdk.data.spi.filesystem.DatasetTestUtilities;
+
 import com.google.common.collect.ImmutableMultiset;
 import com.google.common.io.Files;
+
 import java.io.IOException;
+
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -27,11 +30,14 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
+
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.kitesdk.data.spi.AbstractDatasetRepository;
 import org.kitesdk.data.spi.MemoryMetadataProvider;
 import org.kitesdk.data.spi.MetadataProvider;
 
@@ -109,19 +115,28 @@ public abstract class TestDatasetRepositories extends MiniDFSTest {
     Assert.assertNotNull("Dataset should be returned", dataset);
     Assert.assertTrue("Dataset should exist", repo.exists(NAME));
 
-    DatasetDescriptor saved = testProvider.load(NAME);
-    Assert.assertNotNull("Dataset metadata is stored under name", saved);
+    DatasetDescriptor savedPlusRepoUri = withRepositoryUri(testProvider.load(NAME));
+    Assert.assertNotNull("Dataset metadata is stored under name", savedPlusRepoUri);
     Assert.assertEquals("Saved metadata is returned",
-        saved, dataset.getDescriptor());
+        savedPlusRepoUri, dataset.getDescriptor());
 
     Assert.assertEquals("Dataset name is propagated",
         NAME, dataset.getName());
     Assert.assertEquals("Dataset schema is propagated",
-        testDescriptor.getSchema(), saved.getSchema());
+        testDescriptor.getSchema(), savedPlusRepoUri.getSchema());
     Assert.assertNotNull("Dataset should have a URI location",
-        saved.getLocation());
+        savedPlusRepoUri.getLocation());
     Assert.assertNotNull("Dataset location should have a scheme",
-        saved.getLocation().getScheme());
+        savedPlusRepoUri.getLocation().getScheme());
+  }
+  
+  private DatasetDescriptor withRepositoryUri(DatasetDescriptor descriptor) {
+    if (repo.getUri() != null) {
+      return new DatasetDescriptor.Builder(descriptor).property(
+          AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME,
+          repo.getUri().toString()).build();
+    }
+    return descriptor;
   }
 
   public void ensureCreated() {
@@ -150,17 +165,17 @@ public abstract class TestDatasetRepositories extends MiniDFSTest {
 
     Dataset dataset = repo.create("test2", requested);
 
-    DatasetDescriptor saved = testProvider.load("test2");
-    Assert.assertNotNull("Dataset metadata is stored under name", saved);
+    DatasetDescriptor savedPlusRepoUri = withRepositoryUri(testProvider.load("test2"));
+    Assert.assertNotNull("Dataset metadata is stored under name", savedPlusRepoUri);
     Assert.assertEquals("Saved metadata is returned",
-        saved, dataset.getDescriptor());
+        savedPlusRepoUri, dataset.getDescriptor());
 
     Assert.assertEquals("Dataset name is propagated",
         "test2", dataset.getName());
     Assert.assertEquals("Dataset schema is propagated",
-        requested.getSchema(), saved.getSchema());
+        requested.getSchema(), savedPlusRepoUri.getSchema());
     Assert.assertEquals("Dataset partition strategy propagated",
-        requested.getPartitionStrategy(), saved.getPartitionStrategy());
+        requested.getPartitionStrategy(), savedPlusRepoUri.getPartitionStrategy());
   }
 
   @Test(expected = DatasetExistsException.class)

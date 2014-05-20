@@ -305,39 +305,27 @@ public class TestFileSystemDataset extends MiniDFSTest {
   public void testMerge() throws IOException {
     PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
         "username", 2).build();
-
-    FileSystemDataset<Record> ds = new FileSystemDataset.Builder()
-        .name("partitioned-users")
-        .configuration(getConfiguration())
-        .descriptor(new DatasetDescriptor.Builder()
-            .schema(USER_SCHEMA)
-            .format(format)
-            .location(testDirectory)
-            .partitionStrategy(partitionStrategy)
-            .build())
-        .build();
-
+    
+    String repoUri = "repo:file://" + Files.createTempDir().getAbsolutePath();
+    DatasetRepository repo = DatasetRepositories.open(repoUri);
+    
+    Dataset<Record> ds = repo.create("partitioned-users",
+        new DatasetDescriptor.Builder().schema(USER_SCHEMA).format(format)
+            .partitionStrategy(partitionStrategy).build());
+    
     writeTestUsers(ds, 10);
     checkTestUsers(ds, 10);
 
-    Path newTestDirectory = fileSystem.makeQualified(
-        new Path(Files.createTempDir().getAbsolutePath()));
-
-    FileSystemDataset<Record> dsUpdate = new FileSystemDataset.Builder()
-        .name("partitioned-users")
-        .configuration(getConfiguration())
-        .descriptor(new DatasetDescriptor.Builder()
-            .schema(USER_SCHEMA)
-            .format(format)
-            .location(newTestDirectory)
-            .partitionStrategy(partitionStrategy)
-            .build())
-        .build();
+    Dataset<Record> dsUpdate = repo.create("partitioned-users-update",
+        new DatasetDescriptor.Builder().schema(USER_SCHEMA).format(format)
+            .partitionStrategy(partitionStrategy).build());
 
     writeTestUsers(dsUpdate, 5, 10);
     checkTestUsers(dsUpdate, 5, 10);
 
-    ds.merge(dsUpdate);
+    FileSystemDataset<Record> fsDs = (FileSystemDataset<Record>) ds;
+    FileSystemDataset<Record> fsDsUpdate = (FileSystemDataset<Record>) dsUpdate;
+    fsDs.merge(fsDsUpdate);
 
     checkTestUsers(dsUpdate, 0);
     checkTestUsers(ds, 15);
