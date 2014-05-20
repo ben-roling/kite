@@ -16,8 +16,10 @@
 package org.kitesdk.data.crunch;
 
 import com.google.common.io.Files;
+
 import java.util.Arrays;
 import java.util.Collection;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
@@ -31,7 +33,11 @@ import org.kitesdk.data.MiniDFSTest;
 import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.View;
+import org.kitesdk.data.impl.Accessor;
+import org.kitesdk.data.spi.AbstractDataset;
+
 import junit.framework.Assert;
+
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.crunch.PCollection;
@@ -249,5 +255,32 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
     pipeline.run();
 
     Assert.assertEquals(1, datasetSize(outputDataset));
+  }
+  
+  @Test
+  public void testTargetFrozenPartition() {
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
+        "username", 2).build();
+
+    Dataset<Record> inputDataset = repo.create("in", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+    Dataset<Record> outputDataset = repo.create("out", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+
+    writeTestUsers(inputDataset, 10);
+
+    PartitionKey key = partitionStrategy.partitionKey(0);
+    Dataset<Record> inputPart0 = inputDataset.getPartition(key, false);
+
+    Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
+    PCollection<GenericData.Record> data = pipeline.read(
+        CrunchDatasets.asSource(inputPart0, GenericData.Record.class));
+    pipeline.write(data, CrunchDatasets.asTarget(outputDataset.getUri() + "&partition-key="
+        + key.getValues().toString(), true), Target.WriteMode.APPEND);
+    pipeline.run();
+
+    Dataset<Record> outputPart0 = outputDataset.getPartition(key, false);
+    Assert.assertEquals(5, datasetSize(outputPart0));
+    Assert.assertTrue(outputPart0.isFrozen());
   }
 }
