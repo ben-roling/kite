@@ -108,7 +108,7 @@ public class Datasets {
     return abstractDataset.toPartitionKey(keyString);
   }
   
-  static <E> String getUri(Dataset<E> dataset, @Nullable String partitionKey) {
+  static <E> String getUri(Dataset<E> dataset, @Nullable PartitionKey partitionKey) {
     String repositoryUriString = dataset.getDescriptor().getProperty(
         AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME);
     Preconditions.checkNotNull(repositoryUriString, "Dataset is not in a repository");

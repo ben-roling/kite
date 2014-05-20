@@ -28,6 +28,7 @@ import org.junit.runners.Parameterized;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetRepository;
+import org.kitesdk.data.Datasets;
 import org.kitesdk.data.Formats;
 import org.kitesdk.data.MiniDFSTest;
 import org.kitesdk.data.PartitionKey;
@@ -275,8 +276,8 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
     Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
     PCollection<GenericData.Record> data = pipeline.read(
         CrunchDatasets.asSource(inputPart0, GenericData.Record.class));
-    pipeline.write(data, CrunchDatasets.asTarget(outputDataset.getUri() + "&partition-key="
-        + key.getValues().toString(), true), Target.WriteMode.APPEND);
+    pipeline.write(data, CrunchDatasets.asTarget(Datasets.getUri(outputDataset, key), true),
+        Target.WriteMode.APPEND);
     pipeline.run();
 
     Dataset<Record> outputPart0 = outputDataset.getPartition(key, false);

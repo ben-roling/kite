@@ -568,9 +568,7 @@ public class FileSystemDataset<E> extends AbstractDataset<E> implements
 
   @Override
   public String getUri() {
-    return Accessor.getDefault().getUri(this,
-            partitionKey != null && !partitionKey.getValues().isEmpty() ? partitionKey
-                .getValues().toString() : null);
+    return Datasets.getUri(this, partitionKey);
   }
   
   @Override

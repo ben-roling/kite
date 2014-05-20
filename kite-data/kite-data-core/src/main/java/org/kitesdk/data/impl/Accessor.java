@@ -76,7 +76,7 @@ public abstract class Accessor {
 
   public abstract DatasetException providerExceptionFor(DatasetException e);
   
-  public abstract <E> String getUri(Dataset<E> dataset, @Nullable String partitionKey);
-
+  public abstract <E> String getUri(Dataset<E> dataset, @Nullable PartitionKey partitionKey);
+  
   public abstract PartitionKey getPartitionKey(String datasetUri);
 }
