@@ -117,8 +117,8 @@ public class Datasets {
 
     String datasetUri = String.format("%s%sdataset-name=%s",repositoryUriString,
         storageUri.getQuery() == null ? "?" : "&", dataset.getName());
-    if (partitionKey != null) {
-      return datasetUri + "&partition-key=" + partitionKey;
+    if (partitionKey != null && partitionKey.getValues().size() > 0) {
+      return datasetUri + "&partition-key=" + partitionKey.getValues().toString();
     }
     
     return datasetUri;
