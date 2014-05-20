@@ -113,10 +113,10 @@ public class Datasets {
         AbstractDatasetRepository.REPOSITORY_URI_PROPERTY_NAME);
     Preconditions.checkNotNull(repositoryUriString, "Dataset is not in a repository");
     
-    URI repositoryUri = URI.create(repositoryUriString);
+    URI storageUri = DatasetRepositories.getStorageUri(repositoryUriString);
 
     String datasetUri = String.format("%s%sdataset-name=%s",repositoryUriString,
-        repositoryUri.getQuery() == null ? "?" : "&", dataset.getName());
+        storageUri.getQuery() == null ? "?" : "&", dataset.getName());
     if (partitionKey != null) {
       return datasetUri + "&partition-key=" + partitionKey;
     }
