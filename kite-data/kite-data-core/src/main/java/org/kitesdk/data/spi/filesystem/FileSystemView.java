@@ -18,18 +18,23 @@ package org.kitesdk.data.spi.filesystem;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+
 import java.util.Iterator;
+
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.DatasetReader;
 import org.kitesdk.data.DatasetWriter;
+import org.kitesdk.data.PartitionKey;
+import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.AbstractRefinableView;
 import org.kitesdk.data.spi.Constraints;
 import org.kitesdk.data.spi.InputFormatAccessor;
 import org.kitesdk.data.spi.LastModifiedAccessor;
 import org.kitesdk.data.spi.Pair;
+import org.kitesdk.data.spi.ReadySignalable;
 import org.kitesdk.data.spi.SizeAccessor;
 import org.kitesdk.data.spi.StorageKey;
 import org.apache.hadoop.fs.FileStatus;
@@ -38,7 +43,9 @@ import org.apache.hadoop.fs.Path;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+
 import java.io.IOException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +57,9 @@ import org.slf4j.LoggerFactory;
  */
 @Immutable
 class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatAccessor<E>,
-    LastModifiedAccessor, SizeAccessor {
+    LastModifiedAccessor, SizeAccessor, ReadySignalable {
+
+  private static final String READY_SIGNAL_FILENAME = "_READY";
 
   private static final Logger LOG = LoggerFactory.getLogger(FileSystemView.class);
 
@@ -230,5 +239,97 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
       }
     }
     return lastMod;
+  }
+
+  @Override
+  public boolean isReady() {
+    if (isReady(fs, root, new Path("."))) {
+      // whole dataset is ready
+      return true;
+    }
+    
+    if (constraints.isUnbounded()) {
+      // not ready unless the whole dataset is ready
+      return false;
+    }
+    
+    if (dataset.getDescriptor().isPartitioned()) {
+      DatasetDescriptor descriptor = dataset.getDescriptor();
+      if (!constraints.alignedWithBoundaries(descriptor.getPartitionStrategy())) {
+        return false;
+      }
+      int readyPartitions = 0;
+      int totalPartitions = 0;
+      for (Pair<StorageKey, Path> partition : partitionIterator()) {
+        totalPartitions++;
+        if (isReady(fs, root, partition.second())) {
+          readyPartitions++;
+        }
+      }
+      return readyPartitions > 0 && readyPartitions == totalPartitions;
+    }
+    
+    return false;
+  }
+
+  @Override
+  public void signalReady() {
+    if (constraints.isUnbounded()) {
+      signalReady(fs, root, new Path("."));
+      return;
+    }
+    
+    DatasetDescriptor descriptor = getDataset().getDescriptor();
+    if (!descriptor.isPartitioned()) {
+      // at least one constraint, but not partitioning to satisfy it
+      throw new UnsupportedOperationException(
+          "Cannot cleanly signal view: " + this);
+    }
+    PartitionStrategy partitionStrategy = descriptor.getPartitionStrategy();
+    if (!constraints.convertableToPartitionKeys(partitionStrategy)) {
+      throw new UnsupportedOperationException(
+          "Cannot cleanly signal view: " + this);
+    }
+
+    // make sure the partitions to be signaled exist
+    for (PartitionKey key : constraints.toPartitionKeys(partitionStrategy)) {
+      dataset.getPartition(key, true);
+    }
+    
+    for (Pair<StorageKey, Path> partition : partitionIterator()) {
+      signalReady(fs, root, partition.second());
+    }
+  }
+
+  private static void signalReady(FileSystem fs, Path root, Path dir) {
+    try {
+      if (dir.isAbsolute()) {
+        LOG.debug("Creating ready signal file in {}", dir);
+        fs.create(new Path(dir, READY_SIGNAL_FILENAME));
+      } else {
+        // the path should be treated as relative to the root path
+        Path absolute = new Path(root, dir);
+        LOG.debug("Creating ready signal file in {}", absolute);
+        fs.create(new Path(absolute, READY_SIGNAL_FILENAME));
+      }
+    } catch (IOException ex) {
+      throw new DatasetIOException("Could not create ready signal file:" + dir, ex);
+    }
+  }
+  
+  private static boolean isReady(FileSystem fs, Path root, Path dir) {
+    try {
+      if (dir.isAbsolute()) {
+        LOG.debug("Checking ready signal file in {}", dir);
+        return fs.exists(new Path(dir, READY_SIGNAL_FILENAME));
+      } else {
+        // the path should be treated as relative to the root path
+        Path absolute = new Path(root, dir);
+        LOG.debug("Checking ready signal file in {}", absolute);
+        return fs.exists(new Path(absolute, READY_SIGNAL_FILENAME));
+      }
+    } catch (IOException ex) {
+      throw new DatasetIOException("Could not check ready signal file:" + dir, ex);
+    }
   }
 }
