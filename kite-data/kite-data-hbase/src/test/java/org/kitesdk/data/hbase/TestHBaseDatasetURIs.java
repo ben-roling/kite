@@ -57,13 +57,16 @@ public class TestHBaseDatasetURIs {
     repo.delete("test");
     repo.create("test", descriptor);
 
+    String datasetUri = "dataset:hbase:" + zk + "/test";
     RandomAccessDataset<Object> ds =
-        Datasets.load(URI.create("dataset:hbase:" + zk + "/test")) ;
+        Datasets.load(URI.create(datasetUri)) ;
 
     Assert.assertNotNull("Should load dataset", ds);
     Assert.assertTrue(ds instanceof DaoDataset);
     Assert.assertEquals("Descriptors should match",
         repo.load("test").getDescriptor(), ds.getDescriptor());
+    
+    Assert.assertEquals(datasetUri, new Datasets.URIBuilder(repositoryUri, "test").build());
 
     repo.delete("test");
   }
