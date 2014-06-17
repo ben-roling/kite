@@ -19,6 +19,8 @@ package org.kitesdk.data.spi;
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.PartitionStrategy;
+import org.kitesdk.data.spi.partition.ProvidedFieldPartitioner;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -26,6 +28,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
 import org.apache.avro.generic.GenericRecord;
 
 import java.beans.IntrospectionException;
@@ -67,6 +70,24 @@ public class StorageKey extends Marker implements Comparable<StorageKey> {
   public StorageKey(PartitionStrategy strategy) {
     this(strategy, Arrays.asList(
         new Object[strategy.getFieldPartitioners().size()]));
+  }
+  
+  public StorageKey(PartitionStrategy strategy, Marker seedMarker) {
+    this(strategy, Arrays.asList(
+        new Object[strategy.getFieldPartitioners().size()]));
+    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+      if (fp instanceof ProvidedFieldPartitioner) {
+        String field = fp.getName();
+        Object value = seedMarker.get(field);
+        if (value != null) {
+          values.set(fields.get(field), value);
+        }
+        else {
+          throw new IllegalArgumentException(
+              "seedMarker must contain value for provided partitioner " + fp);
+        }
+      }
+    }
   }
 
   private StorageKey(PartitionStrategy strategy, List<Object> values) {
@@ -145,6 +166,9 @@ public class StorageKey extends Marker implements Comparable<StorageKey> {
 
     for (int i = 0; i < partitioners.size(); i++) {
       final FieldPartitioner fp = partitioners.get(i);
+      if (fp instanceof ProvidedFieldPartitioner) {
+        continue;
+      }
       final Object value;
       // TODO: this should probably live elsewhere and be extensible
       if (entity instanceof GenericRecord) {
@@ -171,7 +195,7 @@ public class StorageKey extends Marker implements Comparable<StorageKey> {
 
     return this;
   }
-
+  
   @Override
   @SuppressWarnings("unchecked")
   public int compareTo(StorageKey other) {

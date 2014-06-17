@@ -17,30 +17,36 @@ package org.kitesdk.data;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+
 import java.util.Set;
+
 import org.kitesdk.data.spi.PartitionStrategyParser;
 import org.kitesdk.data.spi.partition.DayOfMonthFieldPartitioner;
 import org.kitesdk.data.spi.partition.HourFieldPartitioner;
 import org.kitesdk.data.spi.partition.MinuteFieldPartitioner;
 import org.kitesdk.data.spi.partition.MonthFieldPartitioner;
 import org.kitesdk.data.spi.partition.PartitionFunctions;
+import org.kitesdk.data.spi.partition.ProvidedFieldPartitioner;
+
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-
 import java.util.Locale;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
-import org.apache.avro.generic.GenericRecord;
 
+import org.apache.avro.generic.GenericRecord;
 import org.kitesdk.data.impl.Accessor;
 import org.kitesdk.data.spi.partition.HashFieldPartitioner;
 import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
 import org.kitesdk.data.spi.partition.IntRangeFieldPartitioner;
 import org.kitesdk.data.spi.partition.RangeFieldPartitioner;
+
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
+
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.partition.YearFieldPartitioner;
 import org.slf4j.Logger;
@@ -703,6 +709,20 @@ public class PartitionStrategy {
       fieldPartitioners.add(fp);
       names.add(fp.getName());
     }
+
+    public <T extends Comparable<T>> Builder provided(String name, Class<T> clazz) {
+      add(new ProvidedFieldPartitioner<T>(name, clazz));
+      return this;
+    }
+  }
+
+  public boolean containsProvidedFields() {
+    for (FieldPartitioner fp : fieldPartitioners) {
+      if (fp instanceof ProvidedFieldPartitioner) {
+        return true;
+      }
+    }
+    return false;
   }
 
 }

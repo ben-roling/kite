@@ -20,10 +20,13 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.kitesdk.data.*;
 import org.kitesdk.data.event.StandardEvent;
+
 import com.google.common.collect.Sets;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
@@ -789,5 +792,29 @@ public abstract class TestRefinableViews extends MiniDFSTest {
         notPartitioned.toBefore("timestamp", now));
     Assert.assertNotNull("with should succeed",
         notPartitioned.with("timestamp", now));
+  }
+  
+  @Test
+  public void testProvidedFieldPartitioner() {
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().provided("version", String.class)
+        .build();
+    final DatasetDescriptor descriptor = new DatasetDescriptor.Builder(
+        testDescriptor).partitionStrategy(
+        partitionStrategy).build();
+    
+    final Dataset<StandardEvent> ds = repo.create("provided-partitioner", descriptor);
+    
+    TestHelpers.assertThrows("should fail due to lack of 'version'",
+        IllegalArgumentException.class, new Runnable() {
+      @Override
+      public void run() {
+        ds.newWriter();
+      }
+    });
+    
+    DatasetWriter<StandardEvent> writer = ds.with("version", "1").newWriter();
+    writer.open();
+    writer.write(sepEvent);
+    writer.close();
   }
 }

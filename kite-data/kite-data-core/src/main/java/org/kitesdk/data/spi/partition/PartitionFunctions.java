@@ -96,7 +96,7 @@ public class PartitionFunctions {
   public static FieldPartitioner<Long, String> dateFormat(String sourceName, String name, String format) {
     return new DateFormatPartitioner(sourceName, name, format);
   }
-
+  
   @Beta
   public static String toExpression(FieldPartitioner fieldPartitioner) {
     // TODO: add other strategies
@@ -157,6 +157,8 @@ public class PartitionFunctions {
     } else if (fieldPartitioner instanceof MinuteFieldPartitioner) {
       return String.format("minute(\"%s\", \"%s\")", fieldPartitioner.getSourceName(),
           fieldPartitioner.getName());
+    } else if (fieldPartitioner instanceof ProvidedFieldPartitioner) {
+      return String.format("provided(\"%s\")", fieldPartitioner.getName());
     }
 
     throw new IllegalArgumentException("Unrecognized partition function: "

@@ -19,9 +19,11 @@ import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetWriter;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.FieldPartitioner;
+import org.kitesdk.data.spi.Marker;
 import org.kitesdk.data.spi.PartitionListener;
 import org.kitesdk.data.spi.StorageKey;
 import org.kitesdk.data.spi.ReaderWriterState;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -30,6 +32,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,13 +61,20 @@ class PartitionedDatasetWriter<E> implements DatasetWriter<E> {
 
     this.view = view;
     this.partitionStrategy = descriptor.getPartitionStrategy();
+    Marker seedMarker;
+    if (partitionStrategy.containsProvidedFields()) {
+      seedMarker = view.getConstraints().getProvidedFieldMarker(partitionStrategy);
+    }
+    else {
+      seedMarker = new Marker.Builder().build();
+    }
     if (partitionStrategy.getCardinality() == FieldPartitioner.UNKNOWN_CARDINALITY) {
       this.maxWriters = MAX_FILE_WRITERS;
     } else {
       this.maxWriters = Math.min(MAX_FILE_WRITERS, partitionStrategy.getCardinality());
     }
     this.state = ReaderWriterState.NEW;
-    this.reusedKey = new StorageKey(partitionStrategy);
+    this.reusedKey = new StorageKey(partitionStrategy, seedMarker);
   }
 
   @Override

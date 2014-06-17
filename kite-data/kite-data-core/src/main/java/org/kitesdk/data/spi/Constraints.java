@@ -30,10 +30,12 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.generic.GenericRecord;
@@ -44,11 +46,13 @@ import org.kitesdk.data.PartitionKey;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.Predicates.In;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
+import org.kitesdk.data.spi.partition.ProvidedFieldPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.io.IOException;
@@ -56,7 +60,6 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -614,6 +617,24 @@ public class Constraints implements Serializable{
 
   public boolean isUnbounded() {
     return constraints.isEmpty();
+  }
+  
+  public Marker getProvidedFieldMarker(PartitionStrategy strategy) {
+    Marker.Builder markerBuilder = new Marker.Builder();
+    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+      if (fp instanceof ProvidedFieldPartitioner) {
+        Predicate predicate = constraints.get(fp.getName());
+        if (predicate instanceof In) {
+          Set values = ((In) predicate).getSet();
+          if (values.size() > 1) {
+            // if there is more than one value there can't be a single marker
+            return null;
+          }
+          markerBuilder.add(fp.getName(), values.iterator().next());
+        }
+      }
+    }
+    return markerBuilder.build();
   }
 
   /**

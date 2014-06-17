@@ -24,11 +24,13 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.LongNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.Iterator;
+
 import org.apache.avro.Schema;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.PartitionStrategy;
@@ -40,6 +42,7 @@ import org.kitesdk.data.spi.partition.HourFieldPartitioner;
 import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
 import org.kitesdk.data.spi.partition.MinuteFieldPartitioner;
 import org.kitesdk.data.spi.partition.MonthFieldPartitioner;
+import org.kitesdk.data.spi.partition.ProvidedFieldPartitioner;
 import org.kitesdk.data.spi.partition.YearFieldPartitioner;
 
 /**
@@ -180,6 +183,8 @@ public class PartitionStrategyParser {
             "Date format partitioner %s must have a %s.", name, FORMAT);
         String format = fieldPartitioner.get(FORMAT).asText();
         builder.dateFormat(source, name, format);
+      } else if (type.equals("provided")) {
+        builder.provided(name, Comparable.class);
       } else {
         throw new ValidationException("Invalid FieldPartitioner: " + type);
       }
@@ -211,6 +216,8 @@ public class PartitionStrategyParser {
         partitioner.set(TYPE, TextNode.valueOf("dateFormat"));
         partitioner.set(FORMAT,
             TextNode.valueOf(((DateFormatPartitioner) fp).getPattern()));
+      } else if (fp instanceof ProvidedFieldPartitioner) {
+        partitioner.set(TYPE, TextNode.valueOf("provided"));
       } else {
         throw new ValidationException(
             "Unknown partitioner class: " + fp.getClass());

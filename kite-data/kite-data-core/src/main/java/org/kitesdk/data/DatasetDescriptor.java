@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.io.Resources;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,8 +35,10 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
@@ -49,6 +52,7 @@ import org.kitesdk.data.spi.PartitionStrategyParser;
 import org.kitesdk.data.spi.SchemaUtil;
 import org.kitesdk.data.spi.URIPattern;
 import org.kitesdk.data.spi.partition.IdentityFieldPartitioner;
+import org.kitesdk.data.spi.partition.ProvidedFieldPartitioner;
 
 /**
  * <p>
@@ -899,6 +903,10 @@ public class DatasetDescriptor {
       Preconditions.checkState(schema.getType() == Schema.Type.RECORD,
           "Cannot partition non-records: " + schema);
       for (org.kitesdk.data.spi.FieldPartitioner fp : strategy.getFieldPartitioners()) {
+        if (fp instanceof ProvidedFieldPartitioner) {
+          continue;
+        }
+        
         // the source name should be a field in the schema, but not necessarily
         // the record.
         Schema.Field field = schema.getField(fp.getSourceName());
