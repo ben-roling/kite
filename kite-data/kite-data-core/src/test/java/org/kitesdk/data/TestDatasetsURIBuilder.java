@@ -47,7 +47,7 @@ public class TestDatasetsURIBuilder {
   @Test
   public void testBuildDatasetUri() {
     String uri = new Datasets.URIBuilder("repo:file:/tmp/data", "test-ds").build();
-    Assert.assertEquals("dataset:file:/tmp/data/test-ds", uri);
+    Assert.assertEquals("dataset:file:///tmp/data/test-ds", uri);
   }
   
   @Test
