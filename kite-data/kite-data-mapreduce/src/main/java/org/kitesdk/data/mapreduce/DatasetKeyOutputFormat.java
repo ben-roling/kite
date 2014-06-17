@@ -103,6 +103,14 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     }
     
     public ConfigBuilder signalReadyOnCommit() {
+      return signalReadyOnCommit(true);
+    }
+    
+    public ConfigBuilder signalReadyOnCommit(boolean signalReady) {
+      if (!signalReady) {
+        return this;
+      }
+      
       if (conf.get(KITE_OUTPUT_URI) == null) {
         throw new IllegalStateException(
             "signalReadyOnCommit cannot be called before writeTo");

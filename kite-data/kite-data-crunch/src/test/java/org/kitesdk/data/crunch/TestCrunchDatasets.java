@@ -310,4 +310,31 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
 
     Assert.assertEquals(10, datasetSize(outputDataset));
   }
+  
+  @Test
+  public void testSignalReady() {
+    PartitionStrategy partitionStrategy = new PartitionStrategy.Builder().hash(
+        "username", 2).build();
+
+    Dataset<Record> inputDataset = repo.create("in", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+    Dataset<Record> outputDataset = repo.create("out", new DatasetDescriptor.Builder()
+        .schema(USER_SCHEMA).partitionStrategy(partitionStrategy).build());
+    
+    writeTestUsers(inputDataset, 10);
+
+    View<Record> inputView = inputDataset.with("username", "test-11");
+    Assert.assertEquals(0, datasetSize(inputView));
+    
+    Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
+    PCollection<GenericData.Record> data = pipeline.read(
+        CrunchDatasets.asSource(inputView, GenericData.Record.class));
+    pipeline.write(data, CrunchDatasets.asTarget(new Datasets.URIBuilder(repo
+        .getUri(), "out").build(), true), Target.WriteMode.APPEND);
+    pipeline.run();
+
+    // signalReady should work even when the output is empty
+    Assert.assertEquals(0, datasetSize(outputDataset));
+    Assert.assertTrue(outputDataset.isReady());
+  }
 }
