@@ -16,8 +16,10 @@
 package org.kitesdk.data.mapreduce;
 
 import com.google.common.annotations.Beta;
+
 import java.io.IOException;
 import java.net.URI;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
@@ -40,6 +42,7 @@ import org.kitesdk.data.spi.AbstractDataset;
 import org.kitesdk.data.spi.AbstractRefinableView;
 import org.kitesdk.data.spi.Constraints;
 import org.kitesdk.data.spi.Mergeable;
+import org.kitesdk.data.spi.ReadySignalable;
 import org.kitesdk.data.spi.filesystem.FileSystemDataset;
 
 /**
@@ -56,6 +59,7 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
   public static final String KITE_OUTPUT_URI = "kite.outputUri";
   public static final String KITE_PARTITION_DIR = "kite.outputPartitionDir";
   public static final String KITE_CONSTRAINTS = "kite.outputConstraints";
+  public static final String KITE_SIGNAL_READY = "kite.outputSignalReady";
 
   public static class ConfigBuilder {
     private final Configuration conf;
@@ -92,6 +96,22 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
     public ConfigBuilder writeTo(String viewUri) {
       return writeTo(URI.create(viewUri));
+    }
+    
+    public ConfigBuilder signalReadyOnCommit() {
+      if (conf.get(KITE_OUTPUT_URI) == null) {
+        throw new IllegalStateException(
+            "signalReadyOnCommit cannot be called before writeTo");
+      }
+      @SuppressWarnings("unchecked")
+      View view = Datasets.view(conf.get(KITE_OUTPUT_URI));
+      if (!(view instanceof ReadySignalable)) {
+        throw new UnsupportedOperationException(
+            "Implementation does not support signaling ready.  View: " + view);
+      }
+      
+      conf.set(KITE_SIGNAL_READY, Boolean.toString(true));
+      return this;
     }
   }
 
@@ -132,7 +152,7 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
     }
   }
 
-  static class NullOutputCommitter extends OutputCommitter {
+  static class NullOutputCommitter<E> extends OutputCommitter {
     @Override
     public void setupJob(JobContext jobContext) { }
 
@@ -149,6 +169,14 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
 
     @Override
     public void abortTask(TaskAttemptContext taskContext) { }
+    
+    @Override
+    public void commitJob(JobContext jobContext) throws IOException {
+      View<E> targetView = load(jobContext);
+      if (jobContext.getConfiguration().getBoolean(KITE_SIGNAL_READY, false)) {
+        ((ReadySignalable) targetView).signalReady();
+      }
+    }
   }
 
   static class MergeOutputCommitter<E> extends OutputCommitter {
@@ -163,6 +191,9 @@ public class DatasetKeyOutputFormat<E> extends OutputFormat<E, Void> {
       View<E> targetView = load(jobContext);
       Dataset<E> jobDataset = loadJobDataset(jobContext);
       ((Mergeable<Dataset<E>>) targetView.getDataset()).merge(jobDataset);
+      if (jobContext.getConfiguration().getBoolean(KITE_SIGNAL_READY, false)) {
+        ((ReadySignalable) targetView).signalReady();
+      }
       deleteJobDataset(jobContext);
     }
 
