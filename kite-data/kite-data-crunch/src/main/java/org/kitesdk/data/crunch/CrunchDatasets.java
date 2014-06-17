@@ -115,6 +115,21 @@ public class CrunchDatasets {
   public static <E> Target asTarget(View<E> view) {
     return new DatasetTarget<E>(view);
   }
+  
+  /**
+   * Expose the given {@link View} as a Crunch {@link Target}.
+   *
+   * @param view the view to write to
+   * @param <E>  the type of entity stored in the view
+   * @param signalReady indication to {@link ReadySignalable#signalReady() signal}
+   * the output as ready for consumption when the target is committed.  If the
+   * target is not {@link ReadySignalable}, an {@link IllegalArgumentException} will
+   * be thrown.
+   * @return a {@link Target} for the view
+   */
+  public static <E> Target asTarget(View<E> view, boolean signalReady) {
+    return new DatasetTarget<E>(view);
+  }
 
   /**
    * Expose the {@link Dataset} or {@link View} represented by the given
@@ -124,7 +139,22 @@ public class CrunchDatasets {
    * @return a {@link Target} for the dataset or view
    */
   public static Target asTarget(String uri) {
-    return asTarget(URI.create(uri));
+    return asTarget(uri, false);
+  }
+  
+  /**
+   * Expose the {@link Dataset} or {@link View} represented by the given
+   * URI as a Crunch {@link Target}.
+   * 
+   * @param uri the dataset or view URI
+   * @param signalReady indication to {@link ReadySignalable#signalReady() signal}
+   * the output as ready for consumption when the target is committed.  If the
+   * target is not {@link ReadySignalable}, an {@link IllegalArgumentException} will
+   * be thrown.
+   * @return a {@link Target} for the dataset or view
+   */
+  public static Target asTarget(String uri, boolean signalReady) {
+    return asTarget(URI.create(uri), signalReady);
   }
   
   /**
@@ -137,5 +167,21 @@ public class CrunchDatasets {
   public static Target asTarget(URI uri) {
     View<Object> view = Datasets.view(uri);
     return new DatasetTarget<Object>(view);
+  }
+  
+  /**
+   * Expose the {@link Dataset} or {@link View} represented by the given
+   * URI as a Crunch {@link Target}.
+   * 
+   * @param uri the dataset or view URI
+   * @param signalReady indication to {@link ReadySignalable#signalReady() signal}
+   * the output as ready for consumption when the target is committed.  If the
+   * target is not {@link ReadySignalable}, an {@link IllegalArgumentException} will
+   * be thrown.
+   * @return a {@link Target} for the dataset or view
+   */
+  public static Target asTarget(URI uri, boolean signalReady) {
+    View<Object> view = Datasets.view(uri);
+    return new DatasetTarget<Object>(view, signalReady);
   }
 }
