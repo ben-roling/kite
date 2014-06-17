@@ -43,6 +43,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.URI;
 
 import static org.kitesdk.data.spi.filesystem.DatasetTestUtilities.USER_SCHEMA;
 import static org.kitesdk.data.spi.filesystem.DatasetTestUtilities.checkTestUsers;
@@ -271,7 +272,7 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
 
     writeTestUsers(inputDataset, 10);
 
-    String sourceViewUri = new Datasets.URIBuilder(repo.getUri(), "in").with("username",
+    URI sourceViewUri = new Datasets.URIBuilder(repo.getUri(), "in").with("username",
         "test-0").build();
     View<Record> inputView = Datasets.<Record, Dataset<Record>> view(sourceViewUri);
     Assert.assertEquals(1, datasetSize(inputView));
@@ -279,7 +280,7 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
     Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
     PCollection<GenericData.Record> data = pipeline.read(CrunchDatasets
         .asSource(sourceViewUri, GenericData.Record.class));
-    String targetViewUri = new Datasets.URIBuilder(repo.getUri(), "out").with(
+    URI targetViewUri = new Datasets.URIBuilder(repo.getUri(), "out").with(
         "email", "email-0").build();
     pipeline.write(data, CrunchDatasets.asTarget(targetViewUri),
         Target.WriteMode.APPEND);

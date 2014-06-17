@@ -179,10 +179,10 @@ public class Datasets {
      * 
      * @return the URI
      */
-    public String build() {
+    public URI build() {
       URI datasetUri = dataset.getUri();
       if (equalityConstraints.isEmpty()) {
-        return datasetUri.toString();
+        return datasetUri;
       }
       
       URI storageUri = URI.create(datasetUri.getRawSchemeSpecificPart());
@@ -197,8 +197,7 @@ public class Datasets {
       try {
         return new URI("view:" + storageUri.getScheme(),
             storageUri.getUserInfo(), storageUri.getHost(), storageUri.getPort(),
-            storageUri.getPath(), queryBuilder.toString(), storageUri.getFragment())
-            .toString();
+            storageUri.getPath(), queryBuilder.toString(), storageUri.getFragment());
       } catch (URISyntaxException e) {
         // mimicking behavior of URI.create()
         throw new IllegalArgumentException(e);

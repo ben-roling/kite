@@ -16,6 +16,7 @@
 package org.kitesdk.data;
 
 import java.io.IOException;
+import java.net.URI;
 
 import junit.framework.Assert;
 
@@ -46,14 +47,14 @@ public class TestDatasetsURIBuilder {
   
   @Test
   public void testBuildDatasetUri() {
-    String uri = new Datasets.URIBuilder("repo:file:/tmp/data", "test-ds").build();
-    Assert.assertEquals("dataset:file:///tmp/data/test-ds", uri);
+    URI uri = new Datasets.URIBuilder("repo:file:/tmp/data", "test-ds").build();
+    Assert.assertEquals(URI.create("dataset:file:///tmp/data/test-ds"), uri);
   }
   
   @Test
   public void testBuildViewUri() {
-    String uri = new Datasets.URIBuilder("repo:file:/tmp/data", "test-ds")
+    URI uri = new Datasets.URIBuilder("repo:file:/tmp/data", "test-ds")
         .with("username", "bob").build();
-    Assert.assertEquals("view:file:/tmp/data/test-ds?username=bob", uri);
+    Assert.assertEquals(URI.create("view:file:/tmp/data/test-ds?username=bob"), uri);
   }
 }
