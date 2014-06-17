@@ -106,7 +106,7 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
       throw new UnsupportedOperationException(
           "Cannot cleanly delete view: " + this);
     }
-    if (!constraints.alignedWithBoundaries(descriptor.getPartitionStrategy())) {
+    if (!constraints.alignedWithBoundaries()) {
       throw new UnsupportedOperationException(
           "Cannot cleanly delete view: " + this);
     }
@@ -255,7 +255,7 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
     
     if (dataset.getDescriptor().isPartitioned()) {
       DatasetDescriptor descriptor = dataset.getDescriptor();
-      if (!constraints.alignedWithBoundaries(descriptor.getPartitionStrategy())) {
+      if (!constraints.alignedWithBoundaries()) {
         return false;
       }
       int readyPartitions = 0;
@@ -286,13 +286,13 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
           "Cannot cleanly signal view: " + this);
     }
     PartitionStrategy partitionStrategy = descriptor.getPartitionStrategy();
-    if (!constraints.convertableToPartitionKeys(partitionStrategy)) {
+    if (!constraints.convertableToPartitionKeys()) {
       throw new UnsupportedOperationException(
           "Cannot cleanly signal view: " + this);
     }
 
     // make sure the partitions to be signaled exist
-    for (PartitionKey key : constraints.toPartitionKeys(partitionStrategy)) {
+    for (PartitionKey key : constraints.toPartitionKeys()) {
       dataset.getPartition(key, true);
     }
     

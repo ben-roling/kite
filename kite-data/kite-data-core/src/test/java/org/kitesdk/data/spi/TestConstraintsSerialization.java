@@ -51,7 +51,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testInSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "id";
-    Constraints inConstraint = new Constraints(SCHEMA).with(propertyName, "abc");
+    Constraints inConstraint = new Constraints(SCHEMA, null).with(propertyName, "abc");
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
 
@@ -67,7 +67,7 @@ public class TestConstraintsSerialization {
     GenericData.Record record = new GenericData.Record(schema);
     record.put("name", "MeetingName");
 
-    Constraints inConstraint = new Constraints(COMPLEX_SCHEMA).with(propertyName, record);
+    Constraints inConstraint = new Constraints(COMPLEX_SCHEMA, null).with(propertyName, record);
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
 
@@ -78,7 +78,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testInUtf8Serialization() throws IOException, ClassNotFoundException {
     String propertyName = "id";
-    Constraints inConstraint = new Constraints(SCHEMA).with(propertyName,
+    Constraints inConstraint = new Constraints(SCHEMA, null).with(propertyName,
         new Utf8("abc"));
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
@@ -91,7 +91,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testExistsSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "year";
-    Constraints exists = new Constraints(SCHEMA).with(propertyName, new Object[0]);
+    Constraints exists = new Constraints(SCHEMA, null).with(propertyName, new Object[0]);
 
     Constraints newExists = serializeAndDeserialize(exists);
 
@@ -106,7 +106,7 @@ public class TestConstraintsSerialization {
     Schema schema = COMPLEX_SCHEMA.getField(propertyName).schema();
     GenericData.Record record = new GenericData.Record(schema);
     record.put("name", "MeetingName");
-    Constraints rangeConstraint = new Constraints(COMPLEX_SCHEMA).from(propertyName, record);
+    Constraints rangeConstraint = new Constraints(COMPLEX_SCHEMA, null).from(propertyName, record);
 
     Constraints newIn = serializeAndDeserialize(rangeConstraint);
 
@@ -117,7 +117,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testRangeFromSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).from(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).from(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -128,7 +128,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testRangeFromAfterSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).fromAfter(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).fromAfter(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -140,7 +140,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testRangeToSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).to(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).to(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -151,7 +151,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testRangeToBeforeSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).toBefore(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).toBefore(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -162,7 +162,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testFromToSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).from(propertyName, 1L).to(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).from(propertyName, 1L).to(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -173,7 +173,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testFromToBeforeSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).from(propertyName, 1L).toBefore(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).from(propertyName, 1L).toBefore(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -184,7 +184,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testFromAfterToSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).from(propertyName, 1L).to(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).from(propertyName, 1L).to(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -195,7 +195,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testFromAfterToBeforeSerialization() throws IOException, ClassNotFoundException {
     String propertyName = "timestamp";
-    Constraints range = new Constraints(SCHEMA).fromAfter(propertyName, 1L).toBefore(propertyName, 10L);
+    Constraints range = new Constraints(SCHEMA, null).fromAfter(propertyName, 1L).toBefore(propertyName, 10L);
 
     Constraints newRange = serializeAndDeserialize(range);
 
@@ -206,7 +206,7 @@ public class TestConstraintsSerialization {
   @Test
   public void testMultiplePredicatesSerialization() throws IOException, ClassNotFoundException {
     String rangeName = "timestamp";
-    Constraints constraints = new Constraints(SCHEMA).fromAfter(rangeName, 1L).toBefore(rangeName, 10L);
+    Constraints constraints = new Constraints(SCHEMA, null).fromAfter(rangeName, 1L).toBefore(rangeName, 10L);
     String existsName = "year";
     constraints = constraints.with(existsName);
     String inName = "id";

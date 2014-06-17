@@ -79,15 +79,18 @@ public class Constraints implements Serializable{
 
   private transient Schema schema;
   private transient Map<String, Predicate> constraints;
+  private transient PartitionStrategy partitionStrategy;
 
-  public Constraints(Schema schema) {
+  public Constraints(Schema schema, PartitionStrategy partitionStrategy) {
     this.schema = schema;
+    this.partitionStrategy = partitionStrategy;
     this.constraints = ImmutableMap.of();
   }
 
-  private Constraints(Schema schema, Map<String, Predicate> constraints,
-                      String name, Predicate predicate) {
+  private Constraints(Schema schema, PartitionStrategy partiionStrategy,
+      Map<String, Predicate> constraints, String name, Predicate predicate) {
     this.schema = schema;
+    this.partitionStrategy = partiionStrategy;
     Map<String, Predicate> copy = Maps.newHashMap(constraints);
     copy.put(name, predicate);
     this.constraints = ImmutableMap.copyOf(copy);
@@ -120,8 +123,8 @@ public class Constraints implements Serializable{
    *          the partition strategy
    * @return true if the constraints can be converted to a set of partition keys
    */
-  public boolean convertableToPartitionKeys(PartitionStrategy strategy) {
-    if (!alignedWithBoundaries(strategy)) {
+  public boolean convertableToPartitionKeys() {
+    if (!alignedWithBoundaries()) {
       return false;
     }
     if (isRange()) {
@@ -129,7 +132,7 @@ public class Constraints implements Serializable{
     }
     
     boolean hasGap = false;
-    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
       if (constraints.get(fp.getSourceName()) == null) {
         hasGap = true;
       }
@@ -160,15 +163,15 @@ public class Constraints implements Serializable{
    *          {@link PartitionKey partition keys}
    * @return the {@link PartitionKey partition keys} that mimic the constraints
    */
-  public Set<PartitionKey> toPartitionKeys(PartitionStrategy strategy) {
-    Preconditions.checkArgument(convertableToPartitionKeys(strategy));
+  public Set<PartitionKey> toPartitionKeys() {
+    Preconditions.checkArgument(convertableToPartitionKeys());
     
     if (isUnbounded()) {
-      return ImmutableSet.of(strategy.partitionKey());
+      return ImmutableSet.of(partitionStrategy.partitionKey());
     }
 
     SetMultimap<Integer, PartitionKey> partitionKeys = HashMultimap.create();
-    List<FieldPartitioner> fieldPartitioners = strategy.getFieldPartitioners();
+    List<FieldPartitioner> fieldPartitioners = partitionStrategy.getFieldPartitioners();
     int fpIndex = 0;
     for (; fpIndex < fieldPartitioners.size(); fpIndex++) {
       FieldPartitioner fp = fieldPartitioners.get(fpIndex);
@@ -181,12 +184,12 @@ public class Constraints implements Serializable{
       Set set = predicate.getSet();
       for (Object object : set) {
         if (fpIndex == 0) {
-          partitionKeys.put(fpIndex, strategy.partitionKey(object));
+          partitionKeys.put(fpIndex, partitionStrategy.partitionKey(object));
         } else {
           for (PartitionKey partitionKey : ImmutableSet.copyOf(partitionKeys.get(fpIndex - 1))) {
             ArrayList<Object> values = Lists.newArrayList(partitionKey.getValues());
             values.add(object);
-            partitionKeys.put(fpIndex, strategy.partitionKey(values.toArray()));
+            partitionKeys.put(fpIndex, partitionStrategy.partitionKey(values.toArray()));
           }
         }
       }
@@ -221,10 +224,13 @@ public class Constraints implements Serializable{
   @SuppressWarnings("unchecked")
   Map<String, Predicate> minimizeFor(StorageKey key) {
     Map<String, Predicate> unsatisfied = Maps.newHashMap(constraints);
-    PartitionStrategy strategy = key.getPartitionStrategy();
+    PartitionStrategy keyStrategy = key.getPartitionStrategy();
+    Preconditions.checkState(keyStrategy.equals(partitionStrategy),
+        "key strategy %s must match contrainsts strategy %s", keyStrategy,
+        partitionStrategy);
     Set<String> timeFields = Sets.newHashSet();
     int i = 0;
-    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
       String field = fp.getSourceName();
       if (fp instanceof CalendarFieldPartitioner) {
         // keep track of time fields to consider
@@ -246,7 +252,7 @@ public class Constraints implements Serializable{
     for (String timeField : timeFields) {
       Predicate<Long> original = unsatisfied.get(timeField);
       if (original != null) {
-        Predicate<Marker> isSatisfiedBy = TimeDomain.get(strategy, timeField)
+        Predicate<Marker> isSatisfiedBy = TimeDomain.get(partitionStrategy, timeField)
             .projectStrict(original);
         LOG.debug("original: " + original + ", strict: " + isSatisfiedBy);
         if ((isSatisfiedBy != null) && isSatisfiedBy.apply(key)) {
@@ -260,11 +266,10 @@ public class Constraints implements Serializable{
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  Map<String, Predicate> minimizeFor(
-      PartitionStrategy strategy, MarkerRange keyRange) {
+  Map<String, Predicate> minimizeFor(MarkerRange keyRange) {
     Map<String, Predicate> unsatisfied = Maps.newHashMap(constraints);
     Set<String> timeFields = Sets.newHashSet();
-    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
       String field = fp.getSourceName();
       if (fp instanceof CalendarFieldPartitioner) {
         // keep track of time fields to consider
@@ -290,7 +295,7 @@ public class Constraints implements Serializable{
     for (String timeField : timeFields) {
       Predicate<Long> original = unsatisfied.get(timeField);
       if (original != null) {
-        Predicate<Marker> isSatisfiedBy = TimeDomain.get(strategy, timeField)
+        Predicate<Marker> isSatisfiedBy = TimeDomain.get(partitionStrategy, timeField)
             .projectStrict(original);
         // check both endpoints. this duplicates a lot of work because we are
         // using Markers rather than the original predicates
@@ -328,8 +333,8 @@ public class Constraints implements Serializable{
    * @param strategy a PartitionStrategy
    * @return an Iterable of MarkerRange
    */
-  public Iterable<MarkerRange> toKeyRanges(PartitionStrategy strategy) {
-    return new KeyRangeIterable(strategy, constraints);
+  public Iterable<MarkerRange> toKeyRanges() {
+    return new KeyRangeIterable(partitionStrategy, constraints);
   }
 
   /**
@@ -354,9 +359,9 @@ public class Constraints implements Serializable{
    * @return true if this constraint set is satisfied by partitioning
    */
   @SuppressWarnings("unchecked")
-  public boolean alignedWithBoundaries(PartitionStrategy strategy) {
+  public boolean alignedWithBoundaries() {
     Multimap<String, FieldPartitioner> partitioners = HashMultimap.create();
-    for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
+    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
       partitioners.put(fp.getSourceName(), fp);
     }
 
@@ -400,7 +405,7 @@ public class Constraints implements Serializable{
         boolean satisfied = false;
         for (FieldPartitioner fp : fps) {
           if (fp instanceof CalendarFieldPartitioner) {
-            TimeDomain domain = TimeDomain.get(strategy, entry.getKey());
+            TimeDomain domain = TimeDomain.get(partitionStrategy, entry.getKey());
             Predicate strict = domain.projectStrict(predicate);
             Predicate permissive = domain.project(predicate);
             LOG.debug("Time predicate strict: {}", strict);
@@ -436,18 +441,27 @@ public class Constraints implements Serializable{
     return false;
   }
   
+  private static boolean hasField(PartitionStrategy partitionStrategy, String fieldName) {
+    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
+      if (fp.getName().equals(fieldName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   @SuppressWarnings("unchecked")
   public Constraints with(String name, Object... values) {
     SchemaUtil.checkTypeConsistency(schema, name, values);
     if (values.length > 0) {
       checkContained(name, values);
       // this is the most specific constraint and is idempotent under "and"
-      return new Constraints(schema, constraints, name,
+      return new Constraints(schema, partitionStrategy, constraints, name,
           new Predicates.In<Object>(values));
     } else {
       if (!constraints.containsKey(name)) {
         // no other constraint => add the exists
-        return new Constraints(schema, constraints, name, Predicates.exists());
+        return new Constraints(schema, partitionStrategy, constraints, name, Predicates.exists());
       } else {
         // satisfied by an existing constraint
         return this;
@@ -460,10 +474,10 @@ public class Constraints implements Serializable{
     checkContained(name, value);
     Range added = Ranges.atLeast(value);
     if (constraints.containsKey(name)) {
-      return new Constraints(schema, constraints, name,
+      return new Constraints(schema, partitionStrategy, constraints, name,
           and(constraints.get(name), added));
     } else {
-      return new Constraints(schema, constraints, name, added);
+      return new Constraints(schema, partitionStrategy, constraints, name, added);
     }
   }
 
@@ -472,10 +486,10 @@ public class Constraints implements Serializable{
     checkContained(name, value);
     Range added = Ranges.greaterThan(value);
     if (constraints.containsKey(name)) {
-      return new Constraints(schema, constraints, name,
+      return new Constraints(schema, partitionStrategy, constraints, name,
           and(constraints.get(name), added));
     } else {
-      return new Constraints(schema, constraints, name, added);
+      return new Constraints(schema, partitionStrategy, constraints, name, added);
     }
   }
 
@@ -484,10 +498,10 @@ public class Constraints implements Serializable{
     checkContained(name, value);
     Range added = Ranges.atMost(value);
     if (constraints.containsKey(name)) {
-      return new Constraints(schema, constraints, name,
+      return new Constraints(schema, partitionStrategy, constraints, name,
           and(constraints.get(name), added));
     } else {
-      return new Constraints(schema, constraints, name, added);
+      return new Constraints(schema, partitionStrategy, constraints, name, added);
     }
   }
 
@@ -496,10 +510,10 @@ public class Constraints implements Serializable{
     checkContained(name, value);
     Range added = Ranges.lessThan(value);
     if (constraints.containsKey(name)) {
-      return new Constraints(schema, constraints, name,
+      return new Constraints(schema, partitionStrategy, constraints, name,
           and(constraints.get(name), added));
     } else {
-      return new Constraints(schema, constraints, name, added);
+      return new Constraints(schema, partitionStrategy, constraints, name, added);
     }
   }
 
@@ -557,6 +571,10 @@ public class Constraints implements Serializable{
   private void writeObject(java.io.ObjectOutputStream out) throws IOException {
     out.defaultWriteObject();
     out.writeUTF(schema.toString());
+    out.writeBoolean(partitionStrategy != null);
+    if (partitionStrategy != null) {
+      out.writeUTF(PartitionStrategyParser.toString(partitionStrategy, false));
+    }
     ConstraintsSerialization.writeConstraints(schema, constraints, out);
   }
 
@@ -570,6 +588,9 @@ public class Constraints implements Serializable{
   private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException{
     in.defaultReadObject();
     schema = new Parser().parse(in.readUTF());
+    if (in.readBoolean()) {
+      partitionStrategy = PartitionStrategyParser.parse(in.readUTF());
+    }
     constraints = ImmutableMap.copyOf(ConstraintsSerialization.readConstraints(schema, in));
   }
 

@@ -64,7 +64,9 @@ public abstract class AbstractRefinableView<E> implements RefinableView<E> {
       this.comparator = null;
       this.keys = null;
     }
-    this.constraints = new Constraints(dataset.getDescriptor().getSchema());
+    this.constraints = new Constraints(dataset.getDescriptor().getSchema(),
+        dataset.getDescriptor().isPartitioned() ? dataset.getDescriptor()
+            .getPartitionStrategy() : null);
     this.entityTest = constraints.toEntityPredicate();
   }
 

@@ -114,7 +114,7 @@ public class SchemaUtil {
   private static boolean hasField(Schema schema, String fieldName) {
     return (schema.getField(fieldName) != null);
   }
-
+  
   public static void checkPartitionedBy(DatasetDescriptor descriptor,
                                          String fieldName) {
     Preconditions.checkArgument(descriptor.isPartitioned(),

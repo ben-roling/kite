@@ -40,13 +40,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestConstraints {
-  private static final Constraints emptyConstraints = new Constraints(
-      SchemaBuilder.record("Event").fields()
-          .requiredString("id")
-          .requiredLong("timestamp")
-          .requiredString("color")
-          .optionalInt("year")
-          .endRecord());
+  private static final Constraints emptyConstraints(PartitionStrategy partitionStrategy) {
+    return new Constraints(
+        SchemaBuilder.record("Event").fields()
+        .requiredString("id")
+        .requiredLong("timestamp")
+        .requiredString("color")
+        .optionalInt("year")
+        .endRecord(), partitionStrategy);
+  }
 
   private static final Logger LOG = LoggerFactory
       .getLogger(TestConstraints.class);
@@ -84,6 +86,7 @@ public class TestConstraints {
 
   @Test
   public void testEmptyConstraints() {
+    Constraints emptyConstraints = emptyConstraints(strategy);
     Predicate<StorageKey> keyPredicate = emptyConstraints.toKeyPredicate();
     Assert.assertNotNull("Empty constraints should produce a key predicate",
         keyPredicate);
@@ -102,12 +105,12 @@ public class TestConstraints {
         emptyConstraints.toEntityPredicate().apply(null));
 
     Assert.assertNotNull("Should produce an unbound key range",
-        emptyConstraints.toKeyRanges(strategy));
+        emptyConstraints.toKeyRanges());
   }
 
   @Test
   public void testExists() {
-    Constraints exists = emptyConstraints.with("id");
+    Constraints exists = emptyConstraints(strategy).with("id");
 
     Assert.assertEquals("Should be Predicates.exists()",
         Predicates.exists(), exists.get("id"));
@@ -123,12 +126,12 @@ public class TestConstraints {
     Assert.assertNotNull("Should produce a key predicate",
         exists.toKeyPredicate());
     Assert.assertNotNull("Should produce a key range",
-        exists.toKeyRanges(strategy));
+        exists.toKeyRanges());
   }
 
   @Test
   public void testExistsRefinement() {
-    Constraints exists = emptyConstraints.with("id");
+    Constraints exists = emptyConstraints(null).with("id");
 
     String id = UUID.randomUUID().toString();
     Assert.assertNotNull("Refine with exists should work",
@@ -159,13 +162,13 @@ public class TestConstraints {
 
   @Test(expected=NullPointerException.class)
   public void testWithNull() {
-    emptyConstraints.with("id", (Object) null);
+    emptyConstraints(null).with("id", (Object) null);
   }
 
   @Test
   public void testWithSingle() {
     String id = UUID.randomUUID().toString();
-    Constraints withSingle = emptyConstraints.with("id", id);
+    Constraints withSingle = emptyConstraints(null).with("id", id);
 
     Assert.assertNotNull(withSingle);
     Assert.assertEquals("Should produce In(single)",
@@ -185,7 +188,7 @@ public class TestConstraints {
     String[] ids = new String[] {
         UUID.randomUUID().toString(),
         UUID.randomUUID().toString()};
-    Constraints withMultiple = emptyConstraints.with("id", (Object[]) ids);
+    Constraints withMultiple = emptyConstraints(null).with("id", (Object[]) ids);
 
     Assert.assertNotNull(withMultiple);
     Assert.assertEquals("Should produce In(id0, id1)",
@@ -207,7 +210,7 @@ public class TestConstraints {
   public void testWithRefinementUsingRange() {
     String[] ids = new String[] {
         "a", "b", "c"};
-    final Constraints with = emptyConstraints.with("id", (Object[]) ids);
+    final Constraints with = emptyConstraints(null).with("id", (Object[]) ids);
 
     Assert.assertNotNull(with);
 
@@ -245,7 +248,7 @@ public class TestConstraints {
   public void testWithRefinementUsingWith() {
     String[] ids = new String[] {
         "a", "b", "c"};
-    final Constraints with = emptyConstraints.with("id", (Object[]) ids);
+    final Constraints with = emptyConstraints(null).with("id", (Object[]) ids);
 
     Assert.assertNotNull(with);
     Assert.assertEquals("Exists should not change constraints",
@@ -275,28 +278,28 @@ public class TestConstraints {
         NullPointerException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.from("id", null);
+        emptyConstraints(null).from("id", null);
       }
     });
     TestHelpers.assertThrows("fromAfter should fail with null value",
         NullPointerException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.fromAfter("id", null);
+        emptyConstraints(null).fromAfter("id", null);
       }
     });
     TestHelpers.assertThrows("to should fail with null value",
         NullPointerException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.to("id", null);
+        emptyConstraints(null).to("id", null);
       }
     });
     TestHelpers.assertThrows("toBefore should fail with null value",
         NullPointerException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.toBefore("id", null);
+        emptyConstraints(null).toBefore("id", null);
       }
     });
   }
@@ -307,50 +310,50 @@ public class TestConstraints {
     // test how it matches events
     Assert.assertEquals("Should be closed to pos-infinity",
         Ranges.atLeast(2013),
-        emptyConstraints.from("year", 2013).get("year"));
+        emptyConstraints(null).from("year", 2013).get("year"));
     Assert.assertEquals("Should be open to pos-infinity",
         Ranges.greaterThan(2013),
-        emptyConstraints.fromAfter("year", 2013).get("year"));
+        emptyConstraints(null).fromAfter("year", 2013).get("year"));
     Assert.assertEquals("Should be neg-infinity to closed",
         Ranges.atMost(2013),
-        emptyConstraints.to("year", 2013).get("year"));
+        emptyConstraints(null).to("year", 2013).get("year"));
     Assert.assertEquals("Should be neg-infinity to open",
         Ranges.lessThan(2013),
-        emptyConstraints.toBefore("year", 2013).get("year"));
+        emptyConstraints(null).toBefore("year", 2013).get("year"));
   }
 
   @Test
   public void testBasicRangeRefinement() {
     Assert.assertEquals("Should be closed to closed",
         Ranges.closed(2012, 2014),
-        emptyConstraints.from("year", 2012).to("year", 2014).get("year"));
+        emptyConstraints(null).from("year", 2012).to("year", 2014).get("year"));
     Assert.assertEquals("Should be closed to closed",
         Ranges.closed(2012, 2014),
-        emptyConstraints.to("year", 2014).from("year", 2012).get("year"));
+        emptyConstraints(null).to("year", 2014).from("year", 2012).get("year"));
     Assert.assertEquals("Should be closed to open",
         Ranges.closedOpen(2012, 2014),
-        emptyConstraints.from("year", 2012).toBefore("year", 2014).get("year"));
+        emptyConstraints(null).from("year", 2012).toBefore("year", 2014).get("year"));
     Assert.assertEquals("Should be closed to open",
         Ranges.closedOpen(2012, 2014),
-        emptyConstraints.toBefore("year", 2014).from("year", 2012).get("year"));
+        emptyConstraints(null).toBefore("year", 2014).from("year", 2012).get("year"));
     Assert.assertEquals("Should be open to open",
         Ranges.open(2012, 2014),
-        emptyConstraints.fromAfter("year", 2012).toBefore("year", 2014).get("year"));
+        emptyConstraints(null).fromAfter("year", 2012).toBefore("year", 2014).get("year"));
     Assert.assertEquals("Should be open to open",
         Ranges.open(2012, 2014),
-        emptyConstraints.toBefore("year", 2014).fromAfter("year", 2012).get("year"));
+        emptyConstraints(null).toBefore("year", 2014).fromAfter("year", 2012).get("year"));
     Assert.assertEquals("Should be open to closed",
         Ranges.openClosed(2012, 2014),
-        emptyConstraints.fromAfter("year", 2012).to("year", 2014).get("year"));
+        emptyConstraints(null).fromAfter("year", 2012).to("year", 2014).get("year"));
     Assert.assertEquals("Should be open to closed",
         Ranges.openClosed(2012, 2014),
-        emptyConstraints.to("year", 2014).fromAfter("year", 2012).get("year"));
+        emptyConstraints(null).to("year", 2014).fromAfter("year", 2012).get("year"));
   }
 
   @Test
   public void testRangeEndpointRefinementUsingRange() {
     // using the current end-points
-    final Constraints startRange = emptyConstraints.from("year", 2012).to("year", 2014);
+    final Constraints startRange = emptyConstraints(null).from("year", 2012).to("year", 2014);
     Assert.assertEquals(Ranges.closed(2012, 2014),
         startRange.to("year", 2014).get("year"));
     Assert.assertEquals(Ranges.closedOpen(2012, 2014),
@@ -377,7 +380,7 @@ public class TestConstraints {
 
   @Test
   public void testRangeMidpointRefinementUsingRange() {
-    final Constraints startRange = emptyConstraints
+    final Constraints startRange = emptyConstraints(null)
         .from("year", 2012).toBefore("year", 2014);
 
     // any method can be used with a valid midpoint to limit the range
@@ -397,7 +400,7 @@ public class TestConstraints {
 
   @Test
   public void testRangeRefinementUsingWith() {
-    final Constraints startRange = emptyConstraints
+    final Constraints startRange = emptyConstraints(null)
         .from("year", 2012).toBefore("year", 2014);
 
     // Can only refine using a subset
@@ -416,7 +419,7 @@ public class TestConstraints {
 
   @Test
   public void testRangeRefinementUsingExists() {
-    final Constraints startRange = emptyConstraints
+    final Constraints startRange = emptyConstraints(null)
         .from("year", 2012).toBefore("year", 2014);
     Assert.assertEquals(startRange, startRange.with("year"));
   }
@@ -426,7 +429,7 @@ public class TestConstraints {
     GenericEvent e = new GenericEvent();
     StorageKey key = new StorageKey(strategy).reuseFor(e);
 
-    Constraints time = emptyConstraints
+    Constraints time = emptyConstraints(null)
         .from("timestamp", START)
         .to("timestamp", START + 100000);
     Predicate<StorageKey> matchKeys = time.toKeyPredicate();
@@ -472,20 +475,20 @@ public class TestConstraints {
         .endRecord();
     FieldPartitioner<Object, Integer> hash50 =
         new HashFieldPartitioner("name", 50);
+    
+    PartitionStrategy strategy = new PartitionStrategy.Builder()
+        .hash("color", "hash", 50)
+        .year("created_at").month("created_at").day("created_at")
+        .identity("color")
+        .build();
 
-    Constraints c = new Constraints(schema)
+    Constraints c = new Constraints(schema, strategy)
         .with("number", 7, 14, 21, 28, 35, 42, 49)
         .with("color", "green", "orange")
         .from("created_at",
             new DateTime(2013, 1, 1, 0, 0, DateTimeZone.UTC).getMillis())
         .toBefore("created_at",
             new DateTime(2014, 1, 1, 0, 0, DateTimeZone.UTC).getMillis());
-
-    PartitionStrategy strategy = new PartitionStrategy.Builder()
-        .hash("color", "hash", 50)
-        .year("created_at").month("created_at").day("created_at")
-        .identity("color")
-        .build();
 
     StorageKey key = new StorageKey(strategy);
 
@@ -520,60 +523,58 @@ public class TestConstraints {
         .identity("id")
         .build();
 
-    Constraints c = emptyConstraints.with("id", "a", "b", "c");
-
     // if the data is not partitioned by a field, then the partitioning cannot
     // be used to satisfy constraints for that field
     Assert.assertFalse("Cannot be satisfied by partition unless partitioned",
-        c.with("color", "orange").alignedWithBoundaries(strategy));
+        emptyConstraints(strategy).with("id", "a", "b", "c").with("color", "orange").alignedWithBoundaries());
     // even if partitioned, lacking a strict projection means that we cannot
     // reason about what the predicate would accept given the partition data
     Assert.assertFalse("Cannot be satisfied by hash partition filtering",
-        c.alignedWithBoundaries(hashStrategy));
+        emptyConstraints(hashStrategy).with("id", "a", "b", "c").alignedWithBoundaries());
     Assert.assertFalse("Cannot be satisfied by time filtering for timestamp",
-        c.with("timestamp",
+        emptyConstraints(strategy).with("id", "a", "b", "c").with("timestamp",
             new DateTime(2013, 9, 1, 12, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     // if there is a strict projection, we can only use it if it is equivalent
     // to the permissive projection. if we can't tell or if the strict
     // projection is too conservative, we can't use the partition data
     Assert.assertFalse("Cannot be satisfied because equality doesn't hold",
-        c.with("color", "green", "brown")
-            .alignedWithBoundaries(withColor));
+        emptyConstraints(withColor).with("id", "a", "b", "c").with("color", "green", "brown")
+            .alignedWithBoundaries());
     Assert.assertFalse("Cannot be satisfied because equality doesn't hold",
-        c.fromAfter("color", "blue").to("color", "red")
-            .alignedWithBoundaries(withColor));
+        emptyConstraints(withColor).with("id", "a", "b", "c").fromAfter("color", "blue").to("color", "red")
+            .alignedWithBoundaries());
 
     // if the strict projection and permissive projections are identical, then
     // we can conclude that the information in the partitions is sufficient to
     // satisfy the original predicate.
     Assert.assertTrue("Should be satisfied by partition filtering on id",
-        c.alignedWithBoundaries(strategy));
+        emptyConstraints(strategy).alignedWithBoundaries());
   }
 
   @Test
   public void testTimeAlignedWithPartitionBoundaries() {
-    Constraints c = emptyConstraints;
+    Constraints c = emptyConstraints(strategy);
     Assert.assertFalse("Cannot be satisfied because timestamp is in middle of partition",
         c.from("timestamp", new DateTime(2013, 9, 1, 12, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     Assert.assertTrue("Should be satisfied because 'from' timestamp is on inclusive partition boundary",
         c.from("timestamp", new DateTime(2013, 9, 1, 0, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     Assert.assertFalse("Cannot be satisfied because 'from' timestamp is on exclusive partition boundary",
         c.fromAfter("timestamp", new DateTime(2013, 9, 1, 0, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     Assert.assertTrue("Should be satisfied because 'to' timestamp is on exclusive partition boundary",
         c.toBefore("timestamp", new DateTime(2013, 9, 1, 0, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     Assert.assertFalse("Cannot be satisfied because 'to' timestamp is on inclusive partition boundary",
         c.to("timestamp", new DateTime(2013, 9, 1, 0, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
     Assert.assertTrue("Should be satisfied because 'from' timestamp is on inclusive " +
             "partition boundary and 'to' timestamp is on exclusive partition boundary",
         c.from("timestamp", new DateTime(2013, 9, 1, 0, 0, DateTimeZone.UTC).getMillis())
             .toBefore("timestamp", new DateTime(2013, 9, 2, 0, 0, DateTimeZone.UTC).getMillis())
-            .alignedWithBoundaries(strategy));
+            .alignedWithBoundaries());
   }
 
   @Test
@@ -587,10 +588,10 @@ public class TestConstraints {
     e.timestamp = oct_25_2013;
     StorageKey key = new StorageKey(timeOnly).reuseFor(e);
 
-    Constraints c = emptyConstraints.with("timestamp", oct_24_2013);
+    Constraints c = emptyConstraints(null).with("timestamp", oct_24_2013);
     Assert.assertFalse("Should not match", c.toKeyPredicate().apply(key));
 
-    c = emptyConstraints.toBefore("timestamp", oct_24_2013_end);
+    c = emptyConstraints(null).toBefore("timestamp", oct_24_2013_end);
     LOG.info("Constraints: {}", c);
 
     e.timestamp = oct_25_2013;
@@ -601,6 +602,7 @@ public class TestConstraints {
   @Test
   public void testIsRange() {
     long timestamp = new DateTime().getMillis();
+    Constraints emptyConstraints = emptyConstraints(null);
     Assert.assertFalse(emptyConstraints.with("timestamp", timestamp).isRange());
     Assert.assertTrue(emptyConstraints.from("timestamp", timestamp).isRange());
     Assert.assertTrue(emptyConstraints.fromAfter("timestamp", timestamp).isRange());
@@ -610,19 +612,19 @@ public class TestConstraints {
   
   @Test
   public void testToPartitionKeys() {
-    final Constraints emptyConstraints = new Constraints(SchemaBuilder
-        .record("Event").fields().requiredString("a").requiredString("b")
-        .requiredString("c").requiredString("d").endRecord());
     final PartitionStrategy strategy = new PartitionStrategy.Builder()
         .identity("a").identity("b").identity("c").build();
+    final Constraints emptyConstraints = new Constraints(SchemaBuilder
+        .record("Event").fields().requiredString("a").requiredString("b")
+        .requiredString("c").requiredString("d").endRecord(), strategy);
     
-    Set<PartitionKey> partitionKeys = emptyConstraints.toPartitionKeys(strategy);
+    Set<PartitionKey> partitionKeys = emptyConstraints.toPartitionKeys();
     Assert.assertEquals(ImmutableSet.of(strategy.partitionKey()), partitionKeys);
     
-    partitionKeys = emptyConstraints.with("a", "1").toPartitionKeys(strategy);
+    partitionKeys = emptyConstraints.with("a", "1").toPartitionKeys();
     Assert.assertEquals(ImmutableSet.of(strategy.partitionKey("1")), partitionKeys);
     
-    partitionKeys = emptyConstraints.with("a", "1", "11").toPartitionKeys(strategy);
+    partitionKeys = emptyConstraints.with("a", "1", "11").toPartitionKeys();
     Assert.assertEquals(
         ImmutableSet.of(
           strategy.partitionKey("1"),
@@ -632,7 +634,7 @@ public class TestConstraints {
     partitionKeys = emptyConstraints
         .with("a", "1", "11")
         .with("b", "2", "22")
-        .toPartitionKeys(strategy);
+        .toPartitionKeys();
     
     Assert.assertEquals(
         ImmutableSet.of(
@@ -642,14 +644,14 @@ public class TestConstraints {
             strategy.partitionKey("11", "22")),
         partitionKeys);
     
-    partitionKeys = emptyConstraints.with("a", "1").with("b", "2").with("c", "3").toPartitionKeys(strategy);
+    partitionKeys = emptyConstraints.with("a", "1").with("b", "2").with("c", "3").toPartitionKeys();
     Assert.assertEquals(ImmutableSet.of(strategy.partitionKey("1", "2", "3")), partitionKeys);
     
     partitionKeys = emptyConstraints
         .with("a", "1", "11")
         .with("b", "2", "22")
         .with("c", "3", "33")
-        .toPartitionKeys(strategy);
+        .toPartitionKeys();
     
     Assert.assertEquals(
         ImmutableSet.of(
@@ -668,7 +670,7 @@ public class TestConstraints {
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.with("a", "1").with("c", "3").toPartitionKeys(strategy);
+        emptyConstraints.with("a", "1").with("c", "3").toPartitionKeys();
       }});
     
     TestHelpers.assertThrows(
@@ -676,7 +678,7 @@ public class TestConstraints {
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.with("b", "2").toPartitionKeys(strategy);
+        emptyConstraints.with("b", "2").toPartitionKeys();
       }});
     
     TestHelpers.assertThrows(
@@ -684,7 +686,7 @@ public class TestConstraints {
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.with("a", "1").with("d", "X").toPartitionKeys(strategy);
+        emptyConstraints.with("a", "1").with("d", "X").toPartitionKeys();
       }});
     
     TestHelpers.assertThrows(
@@ -692,7 +694,7 @@ public class TestConstraints {
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        emptyConstraints.from("a", "1").toPartitionKeys(strategy);
+        emptyConstraints.from("a", "1").toPartitionKeys();
       }});
   }
 }

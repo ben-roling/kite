@@ -103,7 +103,7 @@ public class TestLocalDatasetURIs {
     Assert.assertEquals("Descriptors should match",
         loaded, v.getDataset().getDescriptor());
 
-    Constraints withUser = new Constraints(loaded.getSchema())
+    Constraints withUser = new Constraints(loaded.getSchema(), null)
         .with("username", "user");
     Assert.assertEquals("Constraints should be username=user",
         withUser, ((FileSystemView) v).getConstraints());

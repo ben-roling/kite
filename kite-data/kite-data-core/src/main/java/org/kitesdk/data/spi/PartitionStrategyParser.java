@@ -131,6 +131,7 @@ public class PartitionStrategyParser {
     return new Schema.Parser().parse(schemaJson.toString());
   }
 
+  @SuppressWarnings("unchecked")
   private static PartitionStrategy buildPartitionStrategy(JsonNode node) {
     ValidationException.check(node.isArray(),
         "A partition strategy must be a JSON array of partitioners");

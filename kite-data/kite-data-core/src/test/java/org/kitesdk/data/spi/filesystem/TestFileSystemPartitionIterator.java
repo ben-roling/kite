@@ -59,7 +59,7 @@ public class TestFileSystemPartitionIterator extends MiniDFSTest {
   public static final Constraints emptyConstraints = new Constraints(
       SchemaBuilder.record("Event").fields()
           .requiredLong("timestamp")
-          .endRecord());
+          .endRecord(), null);
 
   @BeforeClass
   public static void createExpectedKeys() {
