@@ -812,9 +812,30 @@ public abstract class TestRefinableViews extends MiniDFSTest {
       }
     });
     
-    DatasetWriter<StandardEvent> writer = ds.with("version", "1").newWriter();
-    writer.open();
-    writer.write(sepEvent);
-    writer.close();
+    RefinableView<StandardEvent> v1View = ds.with("version", "1");
+    DatasetWriter<StandardEvent> v1Writer = v1View.newWriter();
+    v1Writer.open();
+    v1Writer.write(sepEvent);
+    v1Writer.close();
+    
+    RefinableView<StandardEvent> v2View = ds.with("version", "2");
+    DatasetWriter<StandardEvent> v2Writer = v2View.newWriter();
+    v2Writer.open();
+    v2Writer.write(octEvent);
+    v2Writer.close();
+    
+    DatasetReader<StandardEvent> v1Reader = v1View.newReader();
+    v1Reader.open();
+    StandardEvent standardEvent = v1Reader.next();
+    Assert.assertEquals(sepEvent, standardEvent);
+    Assert.assertFalse(v1Reader.hasNext());
+    v1Reader.close();
+    
+    DatasetReader<StandardEvent> v2Reader = v2View.newReader();
+    v2Reader.open();
+    standardEvent = v2Reader.next();
+    Assert.assertEquals(octEvent, standardEvent);
+    Assert.assertFalse(v2Reader.hasNext());
+    v2Reader.close();
   }
 }

@@ -235,6 +235,15 @@ public class PartitionStrategy {
     return new PartitionStrategy(fieldPartitioners.subList(startIndex,
         fieldPartitioners.size()));
   }
+  
+  public FieldPartitioner getPartitioner(String fieldName) {
+    for (FieldPartitioner fp : fieldPartitioners) {
+      if (fp.getName().equals(fieldName)) {
+        return fp;
+      }
+    }
+    return null;
+  }
 
   @Override
   public boolean equals(Object o) {

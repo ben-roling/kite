@@ -60,9 +60,11 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -103,9 +105,23 @@ public class Constraints implements Serializable{
    * @return a Predicate to test if entity objects satisfy this constraint set
    */
   public <E> Predicate<E> toEntityPredicate() {
-    return new EntityPredicate<E>(constraints);
+    return new EntityPredicate<E>(getEntityPredicates(constraints));
   }
   
+  private Map<String, Predicate> getEntityPredicates(Map<String, Predicate> predicates) {
+    if (partitionStrategy == null) {
+      return predicates;
+    }
+    Map<String, Predicate> entityConstraints = new HashMap<String, Predicate>(predicates.size());
+    for (Entry<String, Predicate> entry : predicates.entrySet()) {
+      if (partitionStrategy.getPartitioner(entry.getKey()) instanceof ProvidedFieldPartitioner) {
+        continue;
+      }
+      entityConstraints.put(entry.getKey(), entry.getValue());
+    }
+    return ImmutableMap.copyOf(entityConstraints);
+  }
+
   /**
    * Indicates if the constraints can be converted to a set of
    * {@link PartitionKey partition keys}
@@ -215,7 +231,7 @@ public class Constraints implements Serializable{
       if (predicates.isEmpty()) {
         return com.google.common.base.Predicates.alwaysTrue();
       }
-      return new EntityPredicate<E>(predicates);
+      return new EntityPredicate<E>(getEntityPredicates(predicates));
     }
     return toEntityPredicate();
   }
@@ -440,19 +456,26 @@ public class Constraints implements Serializable{
     }
     return false;
   }
-  
-  private static boolean hasField(PartitionStrategy partitionStrategy, String fieldName) {
-    for (FieldPartitioner fp : partitionStrategy.getFieldPartitioners()) {
-      if (fp.getName().equals(fieldName)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  
+
   @SuppressWarnings("unchecked")
   public Constraints with(String name, Object... values) {
-    SchemaUtil.checkTypeConsistency(schema, name, values);
+    FieldPartitioner partitioner = partitionStrategy != null ? partitionStrategy
+        .getPartitioner(name) : null;
+    if (partitioner != null && partitioner instanceof ProvidedFieldPartitioner) {
+      for (Object value : values) {
+        // TODO - better type checking with type conversion support
+        Preconditions.checkArgument(
+            partitioner.getType().isAssignableFrom(value.getClass()),
+            "value type %s must match partitioner type %s", value.getClass(),
+            partitioner.getType().getClass());
+      }
+    }
+    else {
+      SchemaUtil.checkTypeConsistency(schema, name, values);
+    }
+    
+    // TODO what if field is both on the schema and provided?
+    
     if (values.length > 0) {
       checkContained(name, values);
       // this is the most specific constraint and is idempotent under "and"
