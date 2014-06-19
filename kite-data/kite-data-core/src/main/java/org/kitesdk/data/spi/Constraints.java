@@ -783,10 +783,13 @@ public class Constraints implements Serializable{
       for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
         Predicate constraint = predicates.get(fp.getSourceName());
         if (constraint == null) {
-          // no constraints => anything matches
-          continue;
+          constraint = predicates.get(fp.getName());
+          if (constraint == null) {
+            // no constraints => anything matches
+            continue;
+          }
         }
-
+        
         Object pValue = key.get(fp.getName());
 
         if (fp instanceof CalendarFieldPartitioner) {
