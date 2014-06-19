@@ -254,7 +254,6 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
     }
     
     if (dataset.getDescriptor().isPartitioned()) {
-      DatasetDescriptor descriptor = dataset.getDescriptor();
       if (!constraints.alignedWithBoundaries()) {
         return false;
       }
@@ -285,7 +284,6 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
       throw new UnsupportedOperationException(
           "Cannot cleanly signal view: " + this);
     }
-    PartitionStrategy partitionStrategy = descriptor.getPartitionStrategy();
     if (!constraints.convertableToPartitionKeys()) {
       throw new UnsupportedOperationException(
           "Cannot cleanly signal view: " + this);
