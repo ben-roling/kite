@@ -310,7 +310,7 @@ public class TestFileSystemView extends TestRefinableViews {
           public void run() {
             RefinableView<StandardEvent> boundedView = unbounded.with(
                 "event_name", "test-event");
-            ((ReadySignalable) boundedView).signalReady();
+            boundedView.isReady();
           }
         });
   }
@@ -324,7 +324,7 @@ public class TestFileSystemView extends TestRefinableViews {
           public void run() {
             RefinableView<StandardEvent> boundedView = unbounded.from(
                 "timestamp", sepEvent.getTimestamp());
-            ((ReadySignalable) boundedView).signalReady();
+            boundedView.isReady();
           }
         });
   }
@@ -401,6 +401,9 @@ public class TestFileSystemView extends TestRefinableViews {
     Assert.assertTrue(boundedView.isReady());
     Assert.assertTrue(ds.with("event_name", "test-event").isReady());
     Assert.assertTrue(ds.with("event_name", "test-event-2").isReady());
+    Assert.assertTrue(ds.with("event_name", "test-event", "test-event-2").isReady());
+    Assert.assertFalse(ds.with("event_name", "test-event", "test-event-2", "test-event-3").isReady());
+    Assert.assertFalse(ds.with("event_name", "test-event-3").isReady());
   }
   
   @SuppressWarnings("deprecation")

@@ -171,48 +171,9 @@ public class TestMapReduce {
     Assert.assertEquals(2, counts.get("banana").intValue());
     Assert.assertEquals(1, counts.get("carrot").intValue());
 
-    Assert.assertFalse(outputDataset.isReady());
-  }
-  
-  @Test
-  @SuppressWarnings("deprecation")
-  public void testSignalReady() throws Exception {
-    Job job = new Job();
-    
-    Dataset<GenericData.Record> inputDataset = repo.create("in",
-        new DatasetDescriptor.Builder()
-            .property("kite.allow.csv", "true")
-            .schema(STRING_SCHEMA)
-            .format(format)
-            .build());
-    DatasetWriter<GenericData.Record> writer = inputDataset.newWriter();
-    writer.open();
-    writer.write(newStringRecord("apple"));
-    writer.close();
-    
-    job.setInputFormatClass(DatasetKeyInputFormat.class);
-    DatasetKeyInputFormat.configure(job).readFrom(inputDataset);
-
-    job.setMapperClass(LineCountMapper.class);
-    job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(IntWritable.class);
-
-    job.setReducerClass(GenericStatsReducer.class);
-
-    Dataset<GenericData.Record> outputDataset = repo.create("out",
-        new DatasetDescriptor.Builder()
-            .property("kite.allow.csv", "true")
-            .schema(STATS_SCHEMA)
-            .format(format)
-            .build());
-
-    job.setOutputFormatClass(DatasetKeyOutputFormat.class);
-    DatasetKeyOutputFormat.configure(job).writeTo(outputDataset).signalReadyOnCommit();
-
-    Assert.assertTrue(job.waitForCompletion(true));
     Assert.assertTrue(outputDataset.isReady());
   }
-
+  
   private GenericData.Record newStringRecord(String text) {
     return new GenericRecordBuilder(STRING_SCHEMA).set("text", text).build();
   }

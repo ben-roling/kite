@@ -185,6 +185,7 @@ class DaoView<E> extends AbstractRefinableView<E> implements InputFormatAccessor
 
   @Override
   public boolean isReady() {
-    return false;
+    throw new UnsupportedOperationException(
+        "View does not support ready signaling: " + this);
   }
 }

@@ -329,7 +329,7 @@ public abstract class TestCrunchDatasets extends MiniDFSTest {
     Pipeline pipeline = new MRPipeline(TestCrunchDatasets.class);
     PCollection<GenericData.Record> data = pipeline.read(
         CrunchDatasets.asSource(inputView, GenericData.Record.class));
-    pipeline.write(data, CrunchDatasets.asTarget(new Datasets.URIBuilder(repo
+    pipeline.write(data, CrunchDatasets.asTarget(new URIBuilder(repo
         .getUri(), "out").build(), true), Target.WriteMode.APPEND);
     pipeline.run();
 

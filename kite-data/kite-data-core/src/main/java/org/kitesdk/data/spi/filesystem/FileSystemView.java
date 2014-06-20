@@ -18,10 +18,9 @@ package org.kitesdk.data.spi.filesystem;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-
 import java.util.Iterator;
-
 import org.apache.hadoop.mapreduce.InputFormat;
+import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetDescriptor;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
@@ -40,12 +39,9 @@ import org.kitesdk.data.spi.StorageKey;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
-
 import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -240,7 +236,7 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
     }
     return lastMod;
   }
-
+  
   @Override
   public boolean isReady() {
     if (isReady(fs, root, new Path("."))) {
@@ -255,21 +251,28 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
     
     if (dataset.getDescriptor().isPartitioned()) {
       DatasetDescriptor descriptor = dataset.getDescriptor();
-      if (!constraints.alignedWithBoundaries(descriptor.getPartitionStrategy())) {
-        return false;
+      PartitionStrategy partitionStrategy = descriptor.getPartitionStrategy();
+      if (!constraints.convertableToPartitionKeys(partitionStrategy)) {
+        throw new UnsupportedOperationException("Cannot cleanly signal view: "
+            + this);
       }
       int readyPartitions = 0;
       int totalPartitions = 0;
-      for (Pair<StorageKey, Path> partition : partitionIterator()) {
+      for (PartitionKey key : constraints.toPartitionKeys(partitionStrategy)) {
+        Dataset<E> partition = dataset.getPartition(key, false);
         totalPartitions++;
-        if (isReady(fs, root, partition.second())) {
+        if (partition != null
+            && isReady(fs, root, new Path(partition.getDescriptor()
+                .getLocation()))) {
           readyPartitions++;
         }
       }
       return readyPartitions > 0 && readyPartitions == totalPartitions;
     }
     
-    return false;
+    // at least one constraint, but not partitioning to satisfy it
+    throw new UnsupportedOperationException("Cannot cleanly signal view: "
+        + this);
   }
 
   @Override
@@ -282,13 +285,11 @@ class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatA
     DatasetDescriptor descriptor = getDataset().getDescriptor();
     if (!descriptor.isPartitioned()) {
       // at least one constraint, but not partitioning to satisfy it
-      throw new UnsupportedOperationException(
-          "Cannot cleanly signal view: " + this);
+      return;
     }
     PartitionStrategy partitionStrategy = descriptor.getPartitionStrategy();
     if (!constraints.convertableToPartitionKeys(partitionStrategy)) {
-      throw new UnsupportedOperationException(
-          "Cannot cleanly signal view: " + this);
+      return;
     }
 
     // make sure the partitions to be signaled exist

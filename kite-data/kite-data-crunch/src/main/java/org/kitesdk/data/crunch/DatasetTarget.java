@@ -32,29 +32,20 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.kitesdk.data.View;
 import org.kitesdk.data.mapreduce.DatasetKeyOutputFormat;
-import org.kitesdk.data.mapreduce.DatasetKeyOutputFormat.ConfigBuilder;
 
 class DatasetTarget<E> implements MapReduceTarget {
 
   FormatBundle formatBundle;
 
   public DatasetTarget(View<E> view) {
-    this(view, false);
-  }
-  
-  public DatasetTarget(View<E> view, boolean signalReady) {
     Configuration temp = emptyConf();
-    DatasetKeyOutputFormat.configure(temp).writeTo(view).signalReadyOnCommit(signalReady);
+    DatasetKeyOutputFormat.configure(temp).writeTo(view);
     this.formatBundle = outputBundle(temp);
   }
 
   public DatasetTarget(URI uri) {
-    this(uri, false);
-  }
-  
-  public DatasetTarget(URI uri, boolean signalReady) {
     Configuration temp = emptyConf();
-    DatasetKeyOutputFormat.configure(temp).writeTo(uri).signalReadyOnCommit(signalReady);
+    DatasetKeyOutputFormat.configure(temp).writeTo(uri);
     this.formatBundle = outputBundle(temp);
   }
 
