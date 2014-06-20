@@ -55,7 +55,7 @@ import org.slf4j.LoggerFactory;
 class FileSystemView<E> extends AbstractRefinableView<E> implements InputFormatAccessor<E>,
     LastModifiedAccessor, SizeAccessor, ReadySignalable {
 
-  private static final String READY_SIGNAL_FILENAME = "_READY";
+  private static final String READY_SIGNAL_FILENAME = "_SUCCESS";
 
   private static final Logger LOG = LoggerFactory.getLogger(FileSystemView.class);
 
