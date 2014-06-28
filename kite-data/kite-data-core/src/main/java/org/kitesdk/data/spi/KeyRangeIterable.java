@@ -30,14 +30,15 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.kitesdk.data.PartitionStrategy;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 
 class KeyRangeIterable implements Iterable<MarkerRange> {
-  private final Map<String, Predicate> predicates;
+  private final Map<String, NamedPredicate> predicates;
   private final PartitionStrategy strategy;
   private final MarkerComparator cmp;
 
-  public KeyRangeIterable(PartitionStrategy strategy, Map<String, Predicate> predicates) {
+  public KeyRangeIterable(PartitionStrategy strategy, Map<String, NamedPredicate> predicates) {
     this.strategy = strategy;
     this.predicates = predicates;
     this.cmp = new MarkerComparator(strategy);

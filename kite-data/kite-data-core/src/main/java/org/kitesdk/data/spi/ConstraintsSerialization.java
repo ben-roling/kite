@@ -27,7 +27,6 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -40,6 +39,8 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 
 /**
  * Serialization Utils for serializing {@link Constraints}
@@ -53,9 +54,9 @@ class ConstraintsSerialization {
    * @param out the stream for writing constraints.
    * @throws IOException error writing the constraints.
    */
-  public static void writeConstraints(Schema schema, Map<String, Predicate> predicates, ObjectOutputStream out) throws IOException {
+  public static void writeConstraints(Schema schema, Map<String, NamedPredicate> predicates, ObjectOutputStream out) throws IOException {
     out.writeInt(predicates.size());
-    for (Map.Entry<String, Predicate> entry: predicates.entrySet()) {
+    for (Map.Entry<String, NamedPredicate> entry: predicates.entrySet()) {
       out.writeUTF(entry.getKey());
       writePredicate(schema.getField(entry.getKey()).schema(), entry.getValue(), out);
     }
@@ -68,12 +69,12 @@ class ConstraintsSerialization {
    * @return the constraints read from the stream.
    * @throws IOException error reading the constraints.
    */
-  public static Map<String, Predicate> readConstraints(Schema schema, ObjectInputStream in) throws IOException {
+  public static Map<String, NamedPredicate> readConstraints(Schema schema, ObjectInputStream in) throws IOException {
     int numPredicates = in.readInt();
-    Map<String, Predicate> predicates = new HashMap<String, Predicate>();
+    Map<String, NamedPredicate> predicates = new HashMap<String, NamedPredicate>();
     for(int i = 0; i < numPredicates; i++){
       String name = in.readUTF();
-      Predicate predicate = readPredicate(schema.getField(name).schema(), in);
+      NamedPredicate predicate = readPredicate(schema.getField(name).schema(), in);
       predicates.put(name, predicate);
     }
 
@@ -96,8 +97,8 @@ class ConstraintsSerialization {
    */
   private static void writePredicate(Schema fieldSchema, Predicate predicate, ObjectOutputStream out) throws IOException {
     out.writeUTF(predicate.getClass().getName());
-    if (predicate instanceof Predicates.In) {
-      writeInPredicate(fieldSchema, (Predicates.In) predicate, out);
+    if (predicate instanceof Predicates.NamedIn) {
+      writeInPredicate(fieldSchema, (Predicates.NamedIn) predicate, out);
     } else if (predicate instanceof Range) {
       writeRangePredicate(fieldSchema, (Range) predicate, out);
     }
@@ -110,9 +111,9 @@ class ConstraintsSerialization {
    * @return the serialized predicate.
    * @throws IOException error reading the predicate
    */
-  private static Predicate readPredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
+  private static NamedPredicate readPredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
     String className = in.readUTF();
-    if (className.equals(Predicates.In.class.getName())) {
+    if (className.equals(Predicates.NamedIn.class.getName())) {
       return readInPredicate(fieldSchema, in);
     } else if (className.equals(Range.class.getName())) {
       return readRangePredicate(fieldSchema, in);
@@ -126,7 +127,7 @@ class ConstraintsSerialization {
   /**
    * Serializes an {@link org.kitesdk.data.spi.Predicates.In} predicate to the stream {@code out}.
    */
-  private static void writeInPredicate(Schema fieldSchema, Predicates.In in, ObjectOutputStream out) throws IOException{
+  private static void writeInPredicate(Schema fieldSchema, Predicates.NamedIn in, ObjectOutputStream out) throws IOException{
     Set values = in.getSet();
     out.writeInt(values.size());
     for (Object value: values) {
@@ -137,7 +138,7 @@ class ConstraintsSerialization {
   /**
    * Deserializes an {@link org.kitesdk.data.spi.Predicates.In} predicate from the stream {@code In}.
    */
-  private static Predicates.In readInPredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
+  private static Predicates.NamedIn readInPredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
     int numValues = in.readInt();
     Set<Object> values = new HashSet<Object>();
     for (int i = 0; i < numValues; i++) {
@@ -175,28 +176,28 @@ class ConstraintsSerialization {
    * Deserializes an {@link Range} from the specified {@code in} stream.
    */
   @SuppressWarnings("unchecked")
-  private static Range readRangePredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
-    Range range = null;
+  private static NamedRangePredicate readRangePredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
+    NamedRangePredicate range = null;
 
     //read in boolean indicating if there is a lower bound
     if (in.readBoolean()) {
       BoundType lowerType = in.readBoolean() ? BoundType.OPEN : BoundType.CLOSED;
       Comparable lowerBound = (Comparable) readValue(fieldSchema, in);
       if (lowerType.equals(BoundType.OPEN)) {
-        range = Ranges.greaterThan(lowerBound);
+        range = Predicates.greaterThan(lowerBound);
       } else {
-        range = Ranges.atLeast(lowerBound);
+        range = Predicates.atLeast(lowerBound);
       }
     }
     //read in boolean indicating if there is an upper bound
     if (in.readBoolean()) {
-      Range upperRange = null;
+      NamedRangePredicate upperRange = null;
       BoundType upperType = in.readBoolean() ? BoundType.OPEN : BoundType.CLOSED;
       Comparable upperBound = (Comparable) readValue(fieldSchema, in);
       if (upperType.equals(BoundType.OPEN)) {
-        upperRange = Ranges.lessThan(upperBound);
+        upperRange = Predicates.lessThan(upperBound);
       } else {
-        upperRange = Ranges.atMost(upperBound);
+        upperRange = Predicates.atMost(upperBound);
       }
       range = range == null ? upperRange : range.intersection(upperRange);
     }

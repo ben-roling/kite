@@ -24,8 +24,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Range;
-import com.google.common.collect.Ranges;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,10 +36,11 @@ import org.apache.commons.codec.binary.Base64;
 import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.PartitionStrategy;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import java.beans.IntrospectionException;
@@ -67,17 +66,17 @@ public class Constraints implements Serializable{
   private static final Logger LOG = LoggerFactory.getLogger(Constraints.class);
 
   private transient Schema schema;
-  private transient Map<String, Predicate> constraints;
+  private transient Map<String, NamedPredicate> constraints;
 
   public Constraints(Schema schema) {
     this.schema = schema;
     this.constraints = ImmutableMap.of();
   }
 
-  private Constraints(Schema schema, Map<String, Predicate> constraints,
-                      String name, Predicate predicate) {
+  private Constraints(Schema schema, Map<String, NamedPredicate> constraints,
+                      String name, NamedPredicate predicate) {
     this.schema = schema;
-    Map<String, Predicate> copy = Maps.newHashMap(constraints);
+    Map<String, NamedPredicate> copy = Maps.newHashMap(constraints);
     copy.put(name, predicate);
     this.constraints = ImmutableMap.copyOf(copy);
   }
@@ -102,7 +101,7 @@ public class Constraints implements Serializable{
    */
   public <E> Predicate<E> toEntityPredicate(StorageKey key) {
     if (key != null) {
-      Map<String, Predicate> predicates = minimizeFor(key);
+      Map<String, NamedPredicate> predicates = minimizeFor(key);
       if (predicates.isEmpty()) {
         return com.google.common.base.Predicates.alwaysTrue();
       }
@@ -113,8 +112,8 @@ public class Constraints implements Serializable{
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  Map<String, Predicate> minimizeFor(StorageKey key) {
-    Map<String, Predicate> unsatisfied = Maps.newHashMap(constraints);
+  Map<String, NamedPredicate> minimizeFor(StorageKey key) {
+    Map<String, NamedPredicate> unsatisfied = Maps.newHashMap(constraints);
     PartitionStrategy strategy = key.getPartitionStrategy();
     Set<String> timeFields = Sets.newHashSet();
     int i = 0;
@@ -154,9 +153,9 @@ public class Constraints implements Serializable{
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  Map<String, Predicate> minimizeFor(
+  Map<String, NamedPredicate> minimizeFor(
       PartitionStrategy strategy, MarkerRange keyRange) {
-    Map<String, Predicate> unsatisfied = Maps.newHashMap(constraints);
+    Map<String, NamedPredicate> unsatisfied = Maps.newHashMap(constraints);
     Set<String> timeFields = Sets.newHashSet();
     for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
       String field = fp.getSourceName();
@@ -166,7 +165,7 @@ public class Constraints implements Serializable{
       }
       String partitionName = fp.getName();
       // add the non-time field if it is not satisfied by the MarkerRange
-      Predicate original = unsatisfied.get(field);
+      NamedPredicate original = unsatisfied.get(field);
       if (original != null) {
         Predicate isSatisfiedBy = fp.projectStrict(original);
         Marker start = keyRange.getStart().getBound();
@@ -282,7 +281,7 @@ public class Constraints implements Serializable{
     // Note: if projectStrict is too conservative or project is too permissive,
     // then this logic cannot determine that that the original predicate is
     // satisfied
-    for (Map.Entry<String, Predicate> entry : constraints.entrySet()) {
+    for (Map.Entry<String, NamedPredicate> entry : constraints.entrySet()) {
       Collection<FieldPartitioner> fps = partitioners.get(entry.getKey());
       if (fps.isEmpty()) {
         LOG.debug("No field partitioners for key {}", entry.getKey());
@@ -328,7 +327,7 @@ public class Constraints implements Serializable{
       checkContained(name, values);
       // this is the most specific constraint and is idempotent under "and"
       return new Constraints(schema, constraints, name,
-          new Predicates.In<Object>(values));
+          new Predicates.NamedIn<Object>(values));
     } else {
       if (!constraints.containsKey(name)) {
         // no other constraint => add the exists
@@ -340,10 +339,11 @@ public class Constraints implements Serializable{
     }
   }
 
+  @SuppressWarnings("unchecked")
   public Constraints from(String name, Comparable value) {
     SchemaUtil.checkTypeConsistency(schema, name, value);
     checkContained(name, value);
-    Range added = Ranges.atLeast(value);
+    NamedPredicate added = Predicates.atLeast(value);
     if (constraints.containsKey(name)) {
       return new Constraints(schema, constraints, name,
           and(constraints.get(name), added));
@@ -352,10 +352,11 @@ public class Constraints implements Serializable{
     }
   }
 
+  @SuppressWarnings("unchecked")
   public Constraints fromAfter(String name, Comparable value) {
     SchemaUtil.checkTypeConsistency(schema, name, value);
     checkContained(name, value);
-    Range added = Ranges.greaterThan(value);
+    NamedPredicate added = Predicates.greaterThan(value);
     if (constraints.containsKey(name)) {
       return new Constraints(schema, constraints, name,
           and(constraints.get(name), added));
@@ -364,10 +365,11 @@ public class Constraints implements Serializable{
     }
   }
 
+  @SuppressWarnings("unchecked")
   public Constraints to(String name, Comparable value) {
     SchemaUtil.checkTypeConsistency(schema, name, value);
     checkContained(name, value);
-    Range added = Ranges.atMost(value);
+    NamedPredicate added = Predicates.atMost(value);
     if (constraints.containsKey(name)) {
       return new Constraints(schema, constraints, name,
           and(constraints.get(name), added));
@@ -376,10 +378,11 @@ public class Constraints implements Serializable{
     }
   }
 
+  @SuppressWarnings("unchecked")
   public Constraints toBefore(String name, Comparable value) {
     SchemaUtil.checkTypeConsistency(schema, name, value);
     checkContained(name, value);
-    Range added = Ranges.lessThan(value);
+    NamedRangePredicate added = Predicates.lessThan(value);
     if (constraints.containsKey(name)) {
       return new Constraints(schema, constraints, name,
           and(constraints.get(name), added));
@@ -483,13 +486,13 @@ public class Constraints implements Serializable{
   }
 
   @SuppressWarnings("unchecked")
-  private static Predicate and(Predicate previous, Range additional) {
-    if (previous instanceof Range) {
+  private static NamedPredicate and(NamedPredicate previous, NamedPredicate additional) {
+    if (previous instanceof NamedRangePredicate) {
       // return the intersection
-      return ((Range) previous).intersection(additional);
-    } else if (previous instanceof Predicates.In) {
+      return ((NamedRangePredicate) previous).intersection((NamedRangePredicate) additional);
+    } else if (previous instanceof Predicates.NamedIn) {
       // filter the set using the range
-      return ((Predicates.In) previous).filter(additional);
+      return ((Predicates.NamedIn) previous).filter(additional);
     } else if (previous instanceof Predicates.Exists) {
       // exists is the weakest constraint, satisfied by any existing constraint
       // all values in the range are non-null
@@ -506,9 +509,9 @@ public class Constraints implements Serializable{
    * @param <E> The type of entities this predicate tests
    */
   private static class EntityPredicate<E> implements Predicate<E> {
-    private final Map<String, Predicate> predicates;
+    private final Map<String, NamedPredicate> predicates;
 
-    public EntityPredicate(Map<String, Predicate> predicates) {
+    public EntityPredicate(Map<String, NamedPredicate> predicates) {
       this.predicates = predicates;
     }
 
@@ -519,7 +522,7 @@ public class Constraints implements Serializable{
         return false;
       }
       // check each constraint and fail immediately
-      for (Map.Entry<String, Predicate> entry : predicates.entrySet()) {
+      for (Map.Entry<String, NamedPredicate> entry : predicates.entrySet()) {
         if (!entry.getValue().apply(get(entity, entry.getKey()))) {
           return false;
         }
@@ -582,9 +585,9 @@ public class Constraints implements Serializable{
    * predicates.
    */
   private static class KeyPredicate implements Predicate<StorageKey> {
-    private final Map<String, Predicate> predicates;
+    private final Map<String, NamedPredicate> predicates;
 
-    private KeyPredicate(Map<String, Predicate> predicates) {
+    private KeyPredicate(Map<String, NamedPredicate> predicates) {
       this.predicates = predicates;
     }
 

@@ -30,17 +30,75 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 public abstract class Predicates {
+  static abstract class NamedPredicate<T> implements Predicate<T> {
+    private Predicate<T> predicate;
+    
+    public NamedPredicate(Predicate<T> predicate) {
+      this.predicate = predicate;
+    }
+    
+    public abstract String getName();
+    
+    @Override
+    public boolean apply(T input) {
+      return predicate.apply(input);
+    }  
+  }
+  
+  static class NamedRangePredicate<T extends Comparable<T>> extends NamedPredicate<T> {
+    private final Range<T> range;
+    
+    public NamedRangePredicate(Range<T> range) {
+      super(range);
+      this.range = range;
+    }
+    
+    public Range<T> getPredicate() {
+      return range;
+    }
+    
+    public NamedRangePredicate<T> intersection(NamedRangePredicate<T> other) {
+      return new NamedRangePredicate<T>(getPredicate().intersection(other.getPredicate()));
+    }
+    
+    @Override
+    public String getName() {
+      Range<T> predicate = getPredicate();
+      return (predicate.lowerBoundType() == BoundType.CLOSED ? "[" : "(")
+        + (predicate.hasLowerBound() ? predicate.lowerEndpoint() : "-inf")
+        + ","
+        + (predicate.hasUpperBound() ? predicate.upperEndpoint() : "inf")
+        + (predicate.upperBoundType() == BoundType.CLOSED ? "]" : ")");
+    }
+  }
+  
+  static <T extends Comparable<T>> NamedRangePredicate<T> atLeast(T value) {
+    return new NamedRangePredicate<T>(Ranges.atLeast(value));
+  }
+  
+  static <T extends Comparable<T>> NamedRangePredicate<T> greaterThan(T value) {
+    return new NamedRangePredicate<T>(Ranges.greaterThan(value));
+  }
+  
+  static <T extends Comparable<T>> NamedRangePredicate<T> atMost(T value) {
+    return new NamedRangePredicate<T>(Ranges.atMost(value));
+  }
+  
+  static <T extends Comparable<T>> NamedRangePredicate<T> lessThan(T value) {
+    return new NamedRangePredicate<T>(Ranges.lessThan(value));
+  }
+  
   @SuppressWarnings("unchecked")
   public static <T> Exists<T> exists() {
     return (Exists<T>) Exists.INSTANCE;
   }
 
-  public static <T> In<T> in(Set<T> set) {
-    return new In<T>(set);
+  public static <T> NamedIn<T> in(Set<T> set) {
+    return new NamedIn<T>(set);
   }
 
-  public static <T> In<T> in(T... set) {
-    return new In<T>(set);
+  public static <T> NamedIn<T> in(T... set) {
+    return new NamedIn<T>(set);
   }
 
   // This should be a method on Range, like In#transform.
@@ -90,24 +148,75 @@ public abstract class Predicates {
     }
   }
 
-  public static class Exists<T> implements Predicate<T> {
+  public static class Exists<T> extends NamedPredicate<T> {
     public static final Exists INSTANCE = new Exists();
 
     private Exists() {
+      super(new Predicate<T>() {
+
+        @Override
+        public boolean apply(@Nullable T value) {
+          return (value != null);
+        }});
     }
 
     @Override
-    public boolean apply(@Nullable T value) {
-      return (value != null);
+    public String getName() {
+      return "exists()";
     }
 
     @Override
     public String toString() {
       return Objects.toStringHelper(this).toString();
     }
+
+  }
+  
+  public static class NamedIn<T> extends NamedPredicate<T> {
+    private final Set<T> set;
+    
+    public NamedIn(Iterable<T> values) {
+      super(new In<T>(values));
+      set = ImmutableSet.copyOf(values);
+    }
+    
+    public NamedIn(T... values) {
+      super(new In<T>(values));
+      set = ImmutableSet.copyOf(values);
+    }
+
+    public NamedPredicate<T> filter(NamedPredicate<T> additional) {
+      return new NamedIn<T>(Iterables.filter(set, additional));
+    }
+
+    @Override
+    public String getName() {
+      return "in(" + set + ")";
+    }
+
+    public Set<T> getSet() {
+      return set;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      return Objects.equal(set, ((NamedIn) o).set);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(set);
+    }
   }
 
-  public static class In<T> implements Predicate<T> {
+  private static class In<T> implements Predicate<T> {
     // ImmutableSet entries are non-null
     private final ImmutableSet<T> set;
 
