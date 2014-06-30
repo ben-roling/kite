@@ -151,7 +151,7 @@ class ConstraintsSerialization {
    * Serializes an {@link Range} into the specified {@code out} stream.
    */
   private static void writeRangePredicate(Schema fieldSchema, NamedRange predicate, ObjectOutputStream out) throws IOException{
-    Range range = predicate.getPredicate();
+    Range range = predicate.getRange();
     if (range.hasLowerBound()) {
       //write out that there is a lower endpoint and the value.
       out.writeBoolean(true);

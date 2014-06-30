@@ -112,7 +112,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
     } else if (predicate instanceof Predicates.NamedRange) {
       NamedRange<Integer> adjusted = Predicates.adjustClosed(
           (NamedRange<Integer>) predicate, DiscreteDomains.integers());
-      Range<Integer> adjustedRange = adjusted.getPredicate();
+      Range<Integer> adjustedRange = adjusted.getRange();
       if (adjustedRange.hasLowerBound()) {
         int lower = adjustedRange.lowerEndpoint();
         int lowerIndex = apply(lower);

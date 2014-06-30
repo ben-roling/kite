@@ -181,7 +181,7 @@ public class TimeDomain {
         names[i] = partitioners.get(i).getName();
       }
 
-      Range<Long> range = predicate.getPredicate();
+      Range<Long> range = predicate.getRange();
       if (range.hasLowerBound()) {
         long start = range.lowerEndpoint() - (acceptEqual ? 0 : 1);
         this.lower = new int[length];
@@ -322,7 +322,7 @@ public class TimeDomain {
           (Predicates.NamedIn) timePredicate, (List) partitioners, inner);
     } else if (timePredicate instanceof NamedRange) {
       return new TimeRangeIterator(
-          ((NamedRange<Long>) timePredicate).getPredicate(), partitioners, inner);
+          ((NamedRange<Long>) timePredicate).getRange(), partitioners, inner);
     }
     return null;
   }

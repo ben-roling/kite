@@ -53,22 +53,21 @@ public abstract class Predicates {
       this.range = range;
     }
     
-    public Range<T> getPredicate() {
+    public Range<T> getRange() {
       return range;
     }
     
     public NamedRange<T> intersection(NamedRange<T> other) {
-      return new NamedRange<T>(getPredicate().intersection(other.getPredicate()));
+      return new NamedRange<T>(getRange().intersection(other.getRange()));
     }
     
     @Override
     public String getName() {
-      Range<T> predicate = getPredicate();
-      return (predicate.lowerBoundType() == BoundType.CLOSED ? "[" : "(")
-        + (predicate.hasLowerBound() ? predicate.lowerEndpoint() : "-inf")
+      return (range.lowerBoundType() == BoundType.CLOSED ? "[" : "(")
+        + (range.hasLowerBound() ? range.lowerEndpoint() : "-inf")
         + ","
-        + (predicate.hasUpperBound() ? predicate.upperEndpoint() : "inf")
-        + (predicate.upperBoundType() == BoundType.CLOSED ? "]" : ")");
+        + (range.hasUpperBound() ? range.upperEndpoint() : "inf")
+        + (range.upperBoundType() == BoundType.CLOSED ? "]" : ")");
     }
     
     @Override
@@ -142,7 +141,7 @@ public abstract class Predicates {
   // Unfortunately, Range is final so we will probably need to re-implement it.
   public static <S extends Comparable<S>, T extends Comparable<T>>
   NamedRange<T> transformClosed(NamedRange<S> predicate, Function<? super S, T> function) {
-    Range<S> range = predicate.getPredicate();
+    Range<S> range = predicate.getRange();
     if (range.hasLowerBound()) {
       if (range.hasUpperBound()) {
         return Predicates.closed(
@@ -160,7 +159,7 @@ public abstract class Predicates {
 
   public static <T extends Comparable<T>>
   NamedRange<T> adjustClosed(NamedRange<T> predicate, DiscreteDomain<T> domain) {
-    Range<T> range = predicate.getPredicate();
+    Range<T> range = predicate.getRange();
     // adjust to a closed range to avoid catching extra keys
     if (range.hasLowerBound()) {
       T lower = range.lowerEndpoint();
@@ -289,10 +288,6 @@ public abstract class Predicates {
 
     public <V> In<V> transform(Function<? super T, V> function) {
       return new In<V>(Iterables.transform(set, function));
-    }
-
-    Set<T> getSet() {
-      return set;
     }
 
     @Override

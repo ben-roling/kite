@@ -81,7 +81,7 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
       //   if this( abc ) => b then this( acc ) => b, so b must be included
       return Predicates.in(
           Predicates.transformClosed((NamedRange<String>) predicate, this)
-              .getPredicate().asSet(domain()));
+              .getRange().asSet(domain()));
     } else {
       return null;
     }
@@ -151,7 +151,7 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
    * @return a Range of upper-bound Strings
    */
   private Range<String> transformClosed(NamedRange<String> predicate) {
-    Range<String> range = predicate.getPredicate();
+    Range<String> range = predicate.getRange();
     if (range.hasLowerBound()) {
       String lower = range.lowerEndpoint();
       // the special case, (a, _] and apply(a) == a is handled by skipping a

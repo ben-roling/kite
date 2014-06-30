@@ -78,7 +78,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<S>) predicate).transform(this);
     } else if (predicate instanceof Predicates.NamedRange) {
-      Range range = ((NamedRange) predicate).getPredicate();
+      Range range = ((NamedRange) predicate).getRange();
       Set<Integer> possibleValues = Sets.newHashSet();
       for (int i = 0; i < values.size(); i += 1) {
         Set<S> items = values.get(i);

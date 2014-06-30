@@ -69,7 +69,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
       //    (Range<Long>) predicate, this, DiscreteDomains.integers());
       NamedRange<Long> adjusted = Predicates.adjustClosed(
           (NamedRange<Long>) predicate, DiscreteDomains.longs());
-      Range<Long> adjustedRange = adjusted.getPredicate();
+      Range<Long> adjustedRange = adjusted.getRange();
       if (adjustedRange.hasLowerBound()) {
         long lower = adjustedRange.lowerEndpoint();
         int lowerImage = apply(lower);

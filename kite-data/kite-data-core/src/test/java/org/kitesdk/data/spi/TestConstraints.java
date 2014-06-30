@@ -346,7 +346,7 @@ public class TestConstraints {
   }
   
   private static Range getRange(NamedPredicate predicate) {
-    return ((NamedRange) predicate).getPredicate();
+    return ((NamedRange) predicate).getRange();
   }
 
   @Test

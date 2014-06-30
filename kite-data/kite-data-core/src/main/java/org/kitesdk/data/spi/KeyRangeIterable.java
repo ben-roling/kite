@@ -374,7 +374,7 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
     @Override
     public MarkerRange.Builder update(
         MarkerRange.Builder current, NamedRange predicate) {
-      Range range = predicate.getPredicate();
+      Range range = predicate.getRange();
       if (range.hasLowerBound()) {
         current.addToStart(name, range.lowerEndpoint());
       }
@@ -406,15 +406,15 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
     @Override
     public MarkerRange.Builder update(
         MarkerRange.Builder current, NamedRange predicate) {
-      Range range = predicate.getPredicate();
+      Range range = predicate.getRange();
       if (range.hasLowerBound()) {
         for (Pair<String, NamedRange> pair : fields) {
-          current.addToStart(pair.first(), pair.second().getPredicate().lowerEndpoint());
+          current.addToStart(pair.first(), pair.second().getRange().lowerEndpoint());
         }
       }
       if (range.hasUpperBound()) {
         for (Pair<String, NamedRange> pair : fields) {
-          current.addToEnd(pair.first(), pair.second().getPredicate().upperEndpoint());
+          current.addToEnd(pair.first(), pair.second().getRange().upperEndpoint());
         }
       }
       return current;
