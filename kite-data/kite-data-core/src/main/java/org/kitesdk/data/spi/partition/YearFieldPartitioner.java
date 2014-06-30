@@ -15,10 +15,8 @@
  */
 package org.kitesdk.data.spi.partition;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.DiscreteDomains;
 import com.google.common.collect.Range;
-import com.google.common.collect.Ranges;
 import java.util.Calendar;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
@@ -42,7 +40,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public Predicate<Integer> project(NamedPredicate<Long> predicate) {
+  public NamedPredicate<Integer> project(NamedPredicate<Long> predicate) {
     // year is the only time field that can be projected
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
@@ -59,7 +57,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public Predicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
+  public NamedPredicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -87,10 +85,10 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
             upperImage -= 1;
           }
           if (lowerImage <= upperImage) {
-            return Ranges.closed(lowerImage, upperImage);
+            return Predicates.closed(lowerImage, upperImage);
           }
         } else {
-          return Ranges.atLeast(lowerImage);
+          return Predicates.atLeast(lowerImage);
         }
       } else if (adjustedRange.hasUpperBound()) {
         long upper = adjustedRange.upperEndpoint();
@@ -99,7 +97,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
           // at least one excluded value maps to the same upper endpoint
           upperImage -= 1;
         }
-        return Ranges.atMost(upperImage);
+        return Predicates.atMost(upperImage);
       }
     }
     // could not produce a satisfying predicate

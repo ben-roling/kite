@@ -121,6 +121,10 @@ public abstract class Predicates {
     return new NamedRange<T>(Ranges.closedOpen(lower, upper));
   }
   
+  public static <T extends Comparable<T>> NamedRange<T> singleton(T value) {
+    return new NamedRange<T>(Ranges.singleton(value));
+  }
+  
   @SuppressWarnings("unchecked")
   public static <T> Exists<T> exists() {
     return (Exists<T>) Exists.INSTANCE;
@@ -136,19 +140,19 @@ public abstract class Predicates {
 
   // This should be a method on Range, like In#transform.
   // Unfortunately, Range is final so we will probably need to re-implement it.
-  public static <S extends Comparable<S>, T extends Comparable>
-  Range<T> transformClosed(NamedRange<S> predicate, Function<? super S, T> function) {
+  public static <S extends Comparable<S>, T extends Comparable<T>>
+  NamedRange<T> transformClosed(NamedRange<S> predicate, Function<? super S, T> function) {
     Range<S> range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       if (range.hasUpperBound()) {
-        return Ranges.closed(
+        return Predicates.closed(
             function.apply(range.lowerEndpoint()),
             function.apply(range.upperEndpoint()));
       } else {
-        return Ranges.atLeast(function.apply(range.lowerEndpoint()));
+        return Predicates.atLeast(function.apply(range.lowerEndpoint()));
       }
     } else if (range.hasUpperBound()) {
-      return Ranges.atMost(function.apply(range.upperEndpoint()));
+      return Predicates.atMost(function.apply(range.upperEndpoint()));
     } else {
       return null;
     }

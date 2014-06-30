@@ -56,7 +56,7 @@ public class HashFieldPartitioner extends FieldPartitioner<Object, Integer> {
   }
 
   @Override
-  public Predicate<Integer> project(NamedPredicate<Object> predicate) {
+  public NamedPredicate<Integer> project(NamedPredicate<Object> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -68,7 +68,7 @@ public class HashFieldPartitioner extends FieldPartitioner<Object, Integer> {
   }
 
   @Override
-  public Predicate<Integer> projectStrict(NamedPredicate<Object> predicate) {
+  public NamedPredicate<Integer> projectStrict(NamedPredicate<Object> predicate) {
     return null;
   }
 

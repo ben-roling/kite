@@ -72,7 +72,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public Predicate<Integer> project(NamedPredicate<S> predicate) {
+  public NamedPredicate<Integer> project(NamedPredicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -103,7 +103,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
   }
 
   @Override
-  public Predicate<Integer> projectStrict(NamedPredicate<S> predicate) {
+  public NamedPredicate<Integer> projectStrict(NamedPredicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn ||

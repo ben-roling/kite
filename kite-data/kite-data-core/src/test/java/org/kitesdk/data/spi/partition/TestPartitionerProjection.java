@@ -18,8 +18,6 @@ package org.kitesdk.data.spi.partition;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Ranges;
 import com.google.common.collect.Sets;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -56,7 +54,7 @@ public class TestPartitionerProjection {
 
     Predicate<String> projected = fp.project(
         Predicates.open(octInstant, octInstant + ONE_DAY_MILLIS));
-    Assert.assertEquals(Ranges.closed("2013-10-12", "2013-10-13"), projected);
+    Assert.assertEquals(Predicates.closed("2013-10-12", "2013-10-13"), projected);
   }
 
   @Test
@@ -69,7 +67,7 @@ public class TestPartitionerProjection {
 
     Predicate<String> projected = fp.projectStrict(
         Predicates.open(sepInstant, novInstant));
-    Assert.assertEquals(Ranges.closed("2013-09-13", "2013-11-10"), projected);
+    Assert.assertEquals(Predicates.closed("2013-09-13", "2013-11-10"), projected);
   }
 
   @Test
@@ -88,45 +86,45 @@ public class TestPartitionerProjection {
     FieldPartitioner<Long, Integer> fp =
         new YearFieldPartitioner("timestamp", "year");
     // Range within a year
-    Assert.assertEquals(Ranges.singleton(2013),
+    Assert.assertEquals(Predicates.singleton(2013),
         fp.project(Predicates.open(sepInstant, novInstant)));
     Assert.assertNull("No year value definitely satisfies original predicate",
         fp.projectStrict(Predicates.open(sepInstant, novInstant)));
 
     // Range spanning a year
-    Assert.assertEquals(Ranges.closed(2012, 2013), fp.project(
+    Assert.assertEquals(Predicates.closed(2012, 2013), fp.project(
         Predicates.open(sepInstant - ONE_YEAR_MILLIS, novInstant)));
     Assert.assertNull("No year value definitely satisfies original predicate",
         fp.projectStrict(Predicates.open(
             sepInstant - ONE_YEAR_MILLIS, novInstant)));
 
     // Range spanning two years
-    Assert.assertEquals(Ranges.closed(2012, 2014), fp.project(Predicates.open(
+    Assert.assertEquals(Predicates.closed(2012, 2014), fp.project(Predicates.open(
         sepInstant - ONE_YEAR_MILLIS, novInstant + ONE_YEAR_MILLIS)));
-    Assert.assertEquals(Ranges.singleton(2013), fp.projectStrict(Predicates.open(
+    Assert.assertEquals(Predicates.singleton(2013), fp.projectStrict(Predicates.open(
         sepInstant - ONE_YEAR_MILLIS, novInstant + ONE_YEAR_MILLIS)));
 
     // open ended ranges
-    Assert.assertEquals(Ranges.atLeast(2013),
+    Assert.assertEquals(Predicates.atLeast(2013),
         fp.project(Predicates.greaterThan(sepInstant)));
-    Assert.assertEquals(Ranges.atLeast(2014),
+    Assert.assertEquals(Predicates.atLeast(2014),
         fp.projectStrict(Predicates.greaterThan(sepInstant)));
-    Assert.assertEquals(Ranges.atMost(2013),
+    Assert.assertEquals(Predicates.atMost(2013),
         fp.project(Predicates.atMost(sepInstant)));
-    Assert.assertEquals(Ranges.atMost(2012),
+    Assert.assertEquals(Predicates.atMost(2012),
         fp.projectStrict(Predicates.atMost(sepInstant)));
 
     // edge cases
     long first2013 = new DateTime(2013, 1, 1, 0, 0, DateTimeZone.UTC)
         .getMillis();
     long last2012 = first2013 - 1;
-    Assert.assertEquals(Ranges.atMost(2012),
+    Assert.assertEquals(Predicates.atMost(2012),
         fp.projectStrict(Predicates.atMost(last2012)));
-    Assert.assertEquals(Ranges.atMost(2012),
+    Assert.assertEquals(Predicates.atMost(2012),
         fp.projectStrict(Predicates.lessThan(first2013)));
-    Assert.assertEquals(Ranges.atLeast(2013),
+    Assert.assertEquals(Predicates.atLeast(2013),
         fp.projectStrict(Predicates.atLeast(first2013)));
-    Assert.assertEquals(Ranges.atLeast(2013),
+    Assert.assertEquals(Predicates.atLeast(2013),
         fp.projectStrict(Predicates.greaterThan(last2012)));
   }
 
@@ -205,11 +203,11 @@ public class TestPartitionerProjection {
   public void testIntRangeFieldPartitionerRangePredicate() {
     final FieldPartitioner<Integer, Integer> fp =
         new IntRangeFieldPartitioner("num", 5, 10, 15, 20);
-    Assert.assertEquals(Ranges.closed(1, 2), fp.project(Predicates.open(5, 15)));
-    Assert.assertEquals(Ranges.closed(0, 2), fp.project(Predicates.open(4, 15)));
+    Assert.assertEquals(Predicates.closed(1, 2), fp.project(Predicates.open(5, 15)));
+    Assert.assertEquals(Predicates.closed(0, 2), fp.project(Predicates.open(4, 15)));
 
     // even though 21 is above the last bound, the range is valid if open
-    Assert.assertEquals(Ranges.closed(0, 3), fp.project(Predicates.open(4, 21)));
+    Assert.assertEquals(Predicates.closed(0, 3), fp.project(Predicates.open(4, 21)));
     TestHelpers.assertThrows("Should not project an invalid range",
         IllegalArgumentException.class, new Runnable() {
       @Override
@@ -218,20 +216,20 @@ public class TestPartitionerProjection {
       }
     });
 
-    Assert.assertEquals(Ranges.closed(1, 2),
+    Assert.assertEquals(Predicates.closed(1, 2),
         fp.projectStrict(Predicates.open(5, 15)));
-    Assert.assertEquals(Ranges.singleton(1),
+    Assert.assertEquals(Predicates.singleton(1),
         fp.projectStrict(Predicates.open(5, 14)));
-    Assert.assertEquals(Ranges.atMost(2),
+    Assert.assertEquals(Predicates.atMost(2),
         fp.projectStrict(Predicates.atMost(15)));
-    Assert.assertEquals(Ranges.atMost(3),
+    Assert.assertEquals(Predicates.atMost(3),
         fp.projectStrict(Predicates.lessThan(21)));
 
     Assert.assertNull(fp.projectStrict(Predicates.closed(15, 16)));
 
     // unbounded range is no problem, although accepted values would be
     // rejected if partitioned
-    Assert.assertEquals(Ranges.atLeast(3),
+    Assert.assertEquals(Predicates.atLeast(3),
         fp.projectStrict(Predicates.atLeast(14)));
 
     TestHelpers.assertThrows("Should not project an invalid range",

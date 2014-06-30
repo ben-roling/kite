@@ -57,12 +57,12 @@ public class CalendarFieldPartitioner extends FieldPartitioner<Long, Integer> {
   }
 
   @Override
-  public Predicate<Integer> project(NamedPredicate<Long> predicate) {
+  public NamedPredicate<Integer> project(NamedPredicate<Long> predicate) {
     return null;
   }
 
   @Override
-  public Predicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
+  public NamedPredicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
     return null;
   }
 

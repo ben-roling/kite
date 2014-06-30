@@ -92,7 +92,7 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
   }
 
   @Override
-  public Predicate<String> project(NamedPredicate<Long> predicate) {
+  public NamedPredicate<String> project(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -109,7 +109,7 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
   }
 
   @Override
-  public Predicate<String> projectStrict(NamedPredicate<Long> predicate) {
+  public NamedPredicate<String> projectStrict(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else {

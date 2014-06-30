@@ -68,12 +68,12 @@ public class IdentityFieldPartitioner<S extends Comparable> extends FieldPartiti
   }
 
   @Override
-  public Predicate<S> project(NamedPredicate<S> predicate) {
+  public NamedPredicate<S> project(NamedPredicate<S> predicate) {
     return predicate;
   }
 
   @Override
-  public Predicate<S> projectStrict(NamedPredicate<S> predicate) {
+  public NamedPredicate<S> projectStrict(NamedPredicate<S> predicate) {
     return predicate;
   }
 

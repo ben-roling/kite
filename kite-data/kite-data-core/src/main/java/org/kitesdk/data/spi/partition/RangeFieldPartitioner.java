@@ -15,7 +15,6 @@
  */
 package org.kitesdk.data.spi.partition;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.DiscreteDomains;
@@ -72,7 +71,7 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
   }
 
   @Override
-  public Predicate<String> project(NamedPredicate<String> predicate) {
+  public NamedPredicate<String> project(NamedPredicate<String> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -82,14 +81,14 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
       //   if this( abc ) => b then this( acc ) => b, so b must be included
       return Predicates.in(
           Predicates.transformClosed((NamedRange<String>) predicate, this)
-              .asSet(domain()));
+              .getPredicate().asSet(domain()));
     } else {
       return null;
     }
   }
 
   @Override
-  public Predicate<String> projectStrict(NamedPredicate<String> predicate) {
+  public NamedPredicate<String> projectStrict(NamedPredicate<String> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {

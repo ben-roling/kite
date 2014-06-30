@@ -205,7 +205,7 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    *
    * @since 0.11.0
    */
-  public abstract Predicate<T> project(NamedPredicate<S> predicate);
+  public abstract NamedPredicate<T> project(NamedPredicate<S> predicate);
 
   /**
    * Projects a source-data constraint {@link Predicate} into the image of the
@@ -222,5 +222,5 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    *         null if the Predicate cannot be projected.
    * @since 0.12.0
    */
-  public abstract Predicate<T> projectStrict(NamedPredicate<S> predicate);
+  public abstract NamedPredicate<T> projectStrict(NamedPredicate<S> predicate);
 }

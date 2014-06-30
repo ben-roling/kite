@@ -15,11 +15,9 @@
  */
 package org.kitesdk.data.spi.partition;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.DiscreteDomains;
 import com.google.common.collect.Range;
 import com.google.common.base.Objects;
-import com.google.common.collect.Ranges;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import java.util.Set;
@@ -68,7 +66,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
   }
 
   @Override
-  public Predicate<Integer> project(NamedPredicate<Integer> predicate) {
+  public NamedPredicate<Integer> project(NamedPredicate<Integer> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -85,7 +83,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
   }
 
   @Override
-  public Predicate<Integer> projectStrict(NamedPredicate<Integer> predicate) {
+  public NamedPredicate<Integer> projectStrict(NamedPredicate<Integer> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
 
@@ -130,13 +128,13 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
             upperIndex -= 1;
           }
           if (lowerIndex <= upperIndex) {
-            return Ranges.closed(lowerIndex, upperIndex);
+            return Predicates.closed(lowerIndex, upperIndex);
           }
         } else {
           // while this includes values for which this function will throw
           // IllegalArgumentException, this is a fair projection of the
           // predicate. this is used assuming that apply succeeded.
-          return Ranges.atLeast(lowerIndex);
+          return Predicates.atLeast(lowerIndex);
         }
       } else if (adjustedRange.hasUpperBound()) {
         int upper = adjustedRange.upperEndpoint();
@@ -145,7 +143,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
           // at least one value that maps to upperIndex but is not included
           upperIndex -= 1;
         }
-        return Ranges.atMost(upperIndex);
+        return Predicates.atMost(upperIndex);
       }
     }
     return null;
