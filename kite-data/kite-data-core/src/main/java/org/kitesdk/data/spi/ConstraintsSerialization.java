@@ -99,8 +99,8 @@ class ConstraintsSerialization {
     out.writeUTF(predicate.getClass().getName());
     if (predicate instanceof Predicates.NamedIn) {
       writeInPredicate(fieldSchema, (Predicates.NamedIn) predicate, out);
-    } else if (predicate instanceof Range) {
-      writeRangePredicate(fieldSchema, (Range) predicate, out);
+    } else if (predicate instanceof NamedRangePredicate) {
+      writeRangePredicate(fieldSchema, (NamedRangePredicate) predicate, out);
     }
   }
 
@@ -115,7 +115,7 @@ class ConstraintsSerialization {
     String className = in.readUTF();
     if (className.equals(Predicates.NamedIn.class.getName())) {
       return readInPredicate(fieldSchema, in);
-    } else if (className.equals(Range.class.getName())) {
+    } else if (className.equals(Predicates.NamedRangePredicate.class.getName())) {
       return readRangePredicate(fieldSchema, in);
     } else if (className.equals(Predicates.Exists.class.getName())) {
       return Predicates.exists();
@@ -150,7 +150,8 @@ class ConstraintsSerialization {
   /**
    * Serializes an {@link Range} into the specified {@code out} stream.
    */
-  private static void writeRangePredicate(Schema fieldSchema, Range range, ObjectOutputStream out) throws IOException{
+  private static void writeRangePredicate(Schema fieldSchema, NamedRangePredicate predicate, ObjectOutputStream out) throws IOException{
+    Range range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       //write out that there is a lower endpoint and the value.
       out.writeBoolean(true);

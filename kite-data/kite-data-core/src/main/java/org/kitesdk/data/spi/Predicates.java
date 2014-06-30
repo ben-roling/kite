@@ -70,6 +70,23 @@ public abstract class Predicates {
         + (predicate.hasUpperBound() ? predicate.upperEndpoint() : "inf")
         + (predicate.upperBoundType() == BoundType.CLOSED ? "]" : ")");
     }
+    
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      return Objects.equal(range, ((NamedRangePredicate) o).range);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(range);
+    }
   }
   
   static <T extends Comparable<T>> NamedRangePredicate<T> atLeast(T value) {
