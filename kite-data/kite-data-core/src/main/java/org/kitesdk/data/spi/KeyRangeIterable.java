@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 
 class KeyRangeIterable implements Iterable<MarkerRange> {
@@ -64,10 +65,10 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
       if (first instanceof CalendarFieldPartitioner) {
         current = TimeDomain.get(strategy, source)
             .addStackedIterator(constraint, current);
-      } else if (constraint instanceof Predicates.In) {
-        current = add((Predicates.In) constraint, fps, current);
-      } else if (constraint instanceof Range) {
-        current = add((Range) constraint, fps, current);
+      } else if (constraint instanceof Predicates.NamedIn) {
+        current = add((Predicates.NamedIn) constraint, fps, current);
+      } else if (constraint instanceof NamedRangePredicate) {
+        current = add((NamedRangePredicate) constraint, fps, current);
       }
     }
 
@@ -111,16 +112,16 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
    */
   @SuppressWarnings("unchecked")
   static Iterator<MarkerRange.Builder> add(
-      Predicates.In constraint, List<FieldPartitioner> fps,
+      Predicates.NamedIn constraint, List<FieldPartitioner> fps,
       Iterator<MarkerRange.Builder> inner) {
 
     Iterator<MarkerRange.Builder> current = inner;
     List<FieldPartitioner> compatible = Lists.newArrayList();
     for (FieldPartitioner fp : fps) {
       Predicate<?> projected = fp.project(constraint);
-      if (projected instanceof Range) {
+      if (projected instanceof Predicates.NamedRangePredicate) {
         current = addProjected(projected, fp.getName(), current);
-      } else if (projected instanceof Predicates.In) {
+      } else if (projected instanceof Predicates.NamedIn) {
         compatible.add(fp);
       }
       // otherwise, all fields are included, so don't add anything
@@ -153,17 +154,17 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
    */
   @SuppressWarnings("unchecked")
   static Iterator<MarkerRange.Builder> add(
-      Range constraint, List<FieldPartitioner> fps,
+      NamedRangePredicate constraint, List<FieldPartitioner> fps,
       Iterator<MarkerRange.Builder> inner) {
 
     Iterator<MarkerRange.Builder> current = inner;
-    List<Pair<String, Range>> compatible = Lists.newArrayList();
+    List<Pair<String, NamedRangePredicate>> compatible = Lists.newArrayList();
     for (FieldPartitioner fp : fps) {
       Predicate<?> projected = fp.project(constraint);
-      if (projected instanceof Predicates.In) {
+      if (projected instanceof Predicates.NamedIn) {
         current = addProjected(projected, fp.getName(), current);
-      } else if (projected instanceof Range) {
-        compatible.add(Pair.of(fp.getName(), (Range) projected));
+      } else if (projected instanceof NamedRangePredicate) {
+        compatible.add(Pair.of(fp.getName(), (NamedRangePredicate) projected));
       }
       // otherwise, all fields are included, so don't add anything
     }
@@ -171,7 +172,7 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
     if (compatible.size() < 1) {
       return current;
     } else if (compatible.size() == 1) {
-      Pair<String, Range> pair = compatible.get(0);
+      Pair<String, NamedRangePredicate> pair = compatible.get(0);
       return addProjected((Predicate<?>) pair.second(), pair.first(), current);
     } else {
       return new RangeGroupIterator(constraint, compatible, current);
@@ -188,10 +189,10 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
   private static Iterator<MarkerRange.Builder> addProjected(
       Predicate projected, String name,
       Iterator<MarkerRange.Builder> inner) {
-    if (projected instanceof Predicates.In) {
-      return new SetIterator((Predicates.In) projected, name, inner);
-    } else if (projected instanceof Range) {
-      return new RangeIterator(name, (Range) projected, inner);
+    if (projected instanceof Predicates.NamedIn) {
+      return new SetIterator((Predicates.NamedIn) projected, name, inner);
+    } else if (projected instanceof NamedRangePredicate) {
+      return new RangeIterator(name, (NamedRangePredicate) projected, inner);
     } else {
       return inner;
     }
@@ -280,7 +281,7 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
      * @param inner An {@code Iterator} to wrap
      */
     @SuppressWarnings("unchecked")
-    private SetIterator(Predicates.In projected, String name,
+    private SetIterator(Predicates.NamedIn projected, String name,
                        Iterator<MarkerRange.Builder> inner) {
       this.name = name;
       setItems(projected.getSet());
@@ -333,7 +334,7 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
      * @param inner An {@code Iterator} to wrap
      */
     @SuppressWarnings("unchecked")
-    SetGroupIterator(Predicates.In constraint, List<FieldPartitioner> fps,
+    SetGroupIterator(Predicates.NamedIn constraint, List<FieldPartitioner> fps,
                             Iterator<MarkerRange.Builder> inner) {
       this.fields = fps;
       setItems(constraint.getSet());
@@ -360,10 +361,10 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
    * {@link KeyRangeIterable.RangeGroupIterator}.
    */
   static class RangeIterator
-      extends StackedIterator<Range, MarkerRange.Builder> {
+      extends StackedIterator<NamedRangePredicate, MarkerRange.Builder> {
     private final String name;
     protected RangeIterator(
-        String name, Range range,
+        String name, NamedRangePredicate range,
         Iterator<MarkerRange.Builder> inner) {
       this.name = name;
       setItem(range);
@@ -372,7 +373,8 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
 
     @Override
     public MarkerRange.Builder update(
-        MarkerRange.Builder current, Range range) {
+        MarkerRange.Builder current, NamedRangePredicate predicate) {
+      Range range = predicate.getPredicate();
       if (range.hasLowerBound()) {
         current.addToStart(name, range.lowerEndpoint());
       }
@@ -391,10 +393,10 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
    * {@link KeyRangeIterable.RangeIterator}.
    */
   static class RangeGroupIterator
-      extends StackedIterator<Range, MarkerRange.Builder> {
-    private final List<Pair<String, Range>> fields;
+      extends StackedIterator<NamedRangePredicate, MarkerRange.Builder> {
+    private final List<Pair<String, NamedRangePredicate>> fields;
 
-    protected RangeGroupIterator(Range constraint, List<Pair<String, Range>> compatible,
+    protected RangeGroupIterator(NamedRangePredicate constraint, List<Pair<String, NamedRangePredicate>> compatible,
                               Iterator<MarkerRange.Builder> inner) {
       this.fields = compatible;
       setItem(constraint);
@@ -403,15 +405,16 @@ class KeyRangeIterable implements Iterable<MarkerRange> {
 
     @Override
     public MarkerRange.Builder update(
-        MarkerRange.Builder current, Range range) {
+        MarkerRange.Builder current, NamedRangePredicate predicate) {
+      Range range = predicate.getPredicate();
       if (range.hasLowerBound()) {
-        for (Pair<String, Range> pair : fields) {
-          current.addToStart(pair.first(), pair.second().lowerEndpoint());
+        for (Pair<String, NamedRangePredicate> pair : fields) {
+          current.addToStart(pair.first(), pair.second().getPredicate().lowerEndpoint());
         }
       }
       if (range.hasUpperBound()) {
-        for (Pair<String, Range> pair : fields) {
-          current.addToEnd(pair.first(), pair.second().upperEndpoint());
+        for (Pair<String, NamedRangePredicate> pair : fields) {
+          current.addToEnd(pair.first(), pair.second().getPredicate().upperEndpoint());
         }
       }
       return current;

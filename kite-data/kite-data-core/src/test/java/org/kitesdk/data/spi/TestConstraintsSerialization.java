@@ -22,13 +22,12 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.junit.Test;
-
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -55,7 +54,7 @@ public class TestConstraintsSerialization {
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
 
-    Predicate predicate = newIn.get(propertyName);
+    NamedPredicate predicate = newIn.get(propertyName);
     assertThat(predicate, equalTo(inConstraint.get(propertyName)));
   }
 
@@ -71,7 +70,7 @@ public class TestConstraintsSerialization {
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
 
-    Predicate predicate = newIn.get(propertyName);
+    NamedPredicate predicate = newIn.get(propertyName);
     assertThat(predicate, equalTo(inConstraint.get(propertyName)));
   }
 
@@ -83,7 +82,7 @@ public class TestConstraintsSerialization {
 
     Constraints newIn = serializeAndDeserialize(inConstraint);
 
-    Predicate predicate = newIn.get(propertyName);
+    NamedPredicate predicate = newIn.get(propertyName);
     assertThat(predicate, equalTo(inConstraint.get(propertyName)));
   }
 
@@ -95,7 +94,7 @@ public class TestConstraintsSerialization {
 
     Constraints newExists = serializeAndDeserialize(exists);
 
-    Predicate predicate = newExists.get(propertyName);
+    NamedPredicate predicate = newExists.get(propertyName);
     assertThat(predicate, equalTo(exists.get(propertyName)));
   }
 
@@ -110,7 +109,7 @@ public class TestConstraintsSerialization {
 
     Constraints newIn = serializeAndDeserialize(rangeConstraint);
 
-    Predicate predicate = newIn.get(propertyName);
+    NamedPredicate predicate = newIn.get(propertyName);
     assertThat(predicate, equalTo(rangeConstraint.get(propertyName)));
   }
 
@@ -121,7 +120,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -132,7 +131,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -144,7 +143,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -155,7 +154,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -166,7 +165,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -177,7 +176,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -188,7 +187,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 
@@ -199,7 +198,7 @@ public class TestConstraintsSerialization {
 
     Constraints newRange = serializeAndDeserialize(range);
 
-    Predicate predicate = newRange.get(propertyName);
+    NamedPredicate predicate = newRange.get(propertyName);
     assertThat(predicate, equalTo(range.get(propertyName)));
   }
 

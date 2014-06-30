@@ -26,6 +26,8 @@ import java.util.List;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 import com.google.common.base.Objects;
 import org.kitesdk.data.spi.Predicates;
 
@@ -70,16 +72,16 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
   }
 
   @Override
-  public Predicate<String> project(Predicate<String> predicate) {
+  public Predicate<String> project(NamedPredicate<String> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
-      return ((Predicates.In<String>) predicate).transform(this);
-    } else if (predicate instanceof Range) {
+    } else if (predicate instanceof Predicates.NamedIn) {
+      return ((Predicates.NamedIn<String>) predicate).transform(this);
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
       // must use a closed range:
       //   if this( abc ) => b then this( acc ) => b, so b must be included
       return Predicates.in(
-          Predicates.transformClosed((Range<String>) predicate, this)
+          Predicates.transformClosed((NamedRangePredicate<String>) predicate, this)
               .asSet(domain()));
     } else {
       return null;
@@ -87,14 +89,14 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
   }
 
   @Override
-  public Predicate<String> projectStrict(Predicate<String> predicate) {
+  public Predicate<String> projectStrict(NamedPredicate<String> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
+    } else if (predicate instanceof Predicates.NamedIn) {
       // not possible to check all inputs to the predicate
       return null;
-    } else if (predicate instanceof Range) {
-      Range<String> transformed = transformClosed((Range<String>) predicate);
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+      Range<String> transformed = transformClosed((NamedRangePredicate<String>) predicate);
       if (transformed != null) {
         return Predicates.in(transformed.asSet(domain()));
       }
@@ -149,7 +151,8 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
    * @param range a Range of Strings
    * @return a Range of upper-bound Strings
    */
-  private Range<String> transformClosed(Range<String> range) {
+  private Range<String> transformClosed(NamedRangePredicate<String> predicate) {
+    Range<String> range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       String lower = range.lowerEndpoint();
       // the special case, (a, _] and apply(a) == a is handled by skipping a

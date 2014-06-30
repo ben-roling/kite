@@ -18,6 +18,7 @@ package org.kitesdk.data.spi;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
 import com.google.common.collect.Sets;
 import java.util.Random;
@@ -30,6 +31,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.TestHelpers;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 import org.kitesdk.data.spi.partition.HashFieldPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,19 +140,19 @@ public class TestConstraints {
     Assert.assertNotNull("Refine with from should work",
         exists.from("id", "0"));
     Assert.assertEquals("Refine with from should produce Range",
-        Ranges.atLeast("0"), exists.from("id", "0").get("id"));
+        Predicates.atLeast("0"), exists.from("id", "0").get("id"));
     Assert.assertNotNull("Refine with fromAfter should work",
         exists.fromAfter("id", "0"));
     Assert.assertEquals("Refine with fromAfter should produce Range",
-        Ranges.greaterThan("0"), exists.fromAfter("id", "0").get("id"));
+        Predicates.greaterThan("0"), exists.fromAfter("id", "0").get("id"));
     Assert.assertNotNull("Refine with to should work",
         exists.to("id", "0"));
     Assert.assertEquals("Refine with to should produce Range",
-        Ranges.atMost("0"), exists.to("id", "0").get("id"));
+        Predicates.atMost("0"), exists.to("id", "0").get("id"));
     Assert.assertNotNull("Refine with toBefore should work",
         exists.toBefore("id", "0"));
     Assert.assertEquals("Refine with toBefore should produce Range",
-        Ranges.lessThan("0"), exists.toBefore("id", "0").get("id"));
+        Predicates.lessThan("0"), exists.toBefore("id", "0").get("id"));
   }
 
   @Test(expected=NullPointerException.class)
@@ -301,16 +304,16 @@ public class TestConstraints {
     // because we validate that the constraint is the guava range, no need to
     // test how it matches events
     Assert.assertEquals("Should be closed to pos-infinity",
-        Ranges.atLeast(2013),
+        Predicates.atLeast(2013),
         emptyConstraints.from("year", 2013).get("year"));
     Assert.assertEquals("Should be open to pos-infinity",
-        Ranges.greaterThan(2013),
+        Predicates.greaterThan(2013),
         emptyConstraints.fromAfter("year", 2013).get("year"));
     Assert.assertEquals("Should be neg-infinity to closed",
-        Ranges.atMost(2013),
+        Predicates.atMost(2013),
         emptyConstraints.to("year", 2013).get("year"));
     Assert.assertEquals("Should be neg-infinity to open",
-        Ranges.lessThan(2013),
+        Predicates.lessThan(2013),
         emptyConstraints.toBefore("year", 2013).get("year"));
   }
 
@@ -318,28 +321,32 @@ public class TestConstraints {
   public void testBasicRangeRefinement() {
     Assert.assertEquals("Should be closed to closed",
         Ranges.closed(2012, 2014),
-        emptyConstraints.from("year", 2012).to("year", 2014).get("year"));
+        getRange(emptyConstraints.from("year", 2012).to("year", 2014).get("year")));
     Assert.assertEquals("Should be closed to closed",
         Ranges.closed(2012, 2014),
-        emptyConstraints.to("year", 2014).from("year", 2012).get("year"));
+        getRange(emptyConstraints.to("year", 2014).from("year", 2012).get("year")));
     Assert.assertEquals("Should be closed to open",
         Ranges.closedOpen(2012, 2014),
-        emptyConstraints.from("year", 2012).toBefore("year", 2014).get("year"));
+        getRange(emptyConstraints.from("year", 2012).toBefore("year", 2014).get("year")));
     Assert.assertEquals("Should be closed to open",
         Ranges.closedOpen(2012, 2014),
-        emptyConstraints.toBefore("year", 2014).from("year", 2012).get("year"));
+        getRange(emptyConstraints.toBefore("year", 2014).from("year", 2012).get("year")));
     Assert.assertEquals("Should be open to open",
         Ranges.open(2012, 2014),
-        emptyConstraints.fromAfter("year", 2012).toBefore("year", 2014).get("year"));
+        getRange(emptyConstraints.fromAfter("year", 2012).toBefore("year", 2014).get("year")));
     Assert.assertEquals("Should be open to open",
         Ranges.open(2012, 2014),
-        emptyConstraints.toBefore("year", 2014).fromAfter("year", 2012).get("year"));
+        getRange(emptyConstraints.toBefore("year", 2014).fromAfter("year", 2012).get("year")));
     Assert.assertEquals("Should be open to closed",
         Ranges.openClosed(2012, 2014),
-        emptyConstraints.fromAfter("year", 2012).to("year", 2014).get("year"));
+        getRange(emptyConstraints.fromAfter("year", 2012).to("year", 2014).get("year")));
     Assert.assertEquals("Should be open to closed",
         Ranges.openClosed(2012, 2014),
-        emptyConstraints.to("year", 2014).fromAfter("year", 2012).get("year"));
+        getRange(emptyConstraints.to("year", 2014).fromAfter("year", 2012).get("year")));
+  }
+  
+  private static Range getRange(NamedPredicate predicate) {
+    return ((NamedRangePredicate) predicate).getPredicate();
   }
 
   @Test
@@ -347,13 +354,13 @@ public class TestConstraints {
     // using the current end-points
     final Constraints startRange = emptyConstraints.from("year", 2012).to("year", 2014);
     Assert.assertEquals(Ranges.closed(2012, 2014),
-        startRange.to("year", 2014).get("year"));
+        getRange(startRange.to("year", 2014).get("year")));
     Assert.assertEquals(Ranges.closedOpen(2012, 2014),
-        startRange.toBefore("year", 2014).get("year"));
+        getRange(startRange.toBefore("year", 2014).get("year")));
     Assert.assertEquals(Ranges.closed(2012, 2014),
-        startRange.from("year", 2012).get("year"));
+        getRange(startRange.from("year", 2012).get("year")));
     Assert.assertEquals(Ranges.openClosed(2012, 2014),
-        startRange.fromAfter("year", 2012).get("year"));
+        getRange(startRange.fromAfter("year", 2012).get("year")));
     TestHelpers.assertThrows("Cannot change closed endpoint to open",
         IllegalArgumentException.class, new Runnable() {
       @Override
@@ -378,16 +385,16 @@ public class TestConstraints {
     // any method can be used with a valid midpoint to limit the range
     Assert.assertEquals("Can refine using from",
         Ranges.closedOpen(2013, 2014),
-        startRange.from("year", 2013).get("year"));
+        getRange(startRange.from("year", 2013).get("year")));
     Assert.assertEquals("Can refine using fromAfter",
         Ranges.open(2013, 2014),
-        startRange.fromAfter("year", 2013).get("year"));
+        getRange(startRange.fromAfter("year", 2013).get("year")));
     Assert.assertEquals("Can refine using to",
         Ranges.closed(2012, 2013),
-        startRange.to("year", 2013).get("year"));
+        getRange(startRange.to("year", 2013).get("year")));
     Assert.assertEquals("Can refine using toBefore",
         Ranges.closedOpen(2012, 2013),
-        startRange.toBefore("year", 2013).get("year"));
+        getRange(startRange.toBefore("year", 2013).get("year")));
   }
 
   @Test

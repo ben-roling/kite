@@ -20,13 +20,14 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Range;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 
 /**
  * A FieldPartitioner that formats a timestamp (long) in milliseconds since
@@ -91,24 +92,24 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
   }
 
   @Override
-  public Predicate<String> project(Predicate<Long> predicate) {
+  public Predicate<String> project(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
-      return ((Predicates.In<Long>) predicate).transform(this);
-    } else if (predicate instanceof Range) {
+    } else if (predicate instanceof Predicates.NamedIn) {
+      return ((Predicates.NamedIn<Long>) predicate).transform(this);
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
       // FIXME: This project is only true in some cases
       // true for yyyy-MM-dd, but not dd-MM-yyyy
       // this is lossy, so the final range must be closed:
       //   (2013-10-4 20:17:55, ...] => [2013-10-4, ...]
-      return Predicates.transformClosed((Range<Long>) predicate, this);
+      return Predicates.transformClosed((NamedRangePredicate<Long>) predicate, this);
     } else {
       return null;
     }
   }
 
   @Override
-  public Predicate<String> projectStrict(Predicate<Long> predicate) {
+  public Predicate<String> projectStrict(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else {

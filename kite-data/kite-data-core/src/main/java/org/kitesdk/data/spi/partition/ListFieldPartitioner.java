@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
     value="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE",
@@ -70,13 +72,13 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public Predicate<Integer> project(Predicate<S> predicate) {
+  public Predicate<Integer> project(NamedPredicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
-      return ((Predicates.In<S>) predicate).transform(this);
-    } else if (predicate instanceof Range) {
-      Range range = (Range) predicate;
+    } else if (predicate instanceof Predicates.NamedIn) {
+      return ((Predicates.NamedIn<S>) predicate).transform(this);
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+      Range range = ((NamedRangePredicate) predicate).getPredicate();
       Set<Integer> possibleValues = Sets.newHashSet();
       for (int i = 0; i < values.size(); i += 1) {
         Set<S> items = values.get(i);
@@ -101,11 +103,11 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
   }
 
   @Override
-  public Predicate<Integer> projectStrict(Predicate<S> predicate) {
+  public Predicate<Integer> projectStrict(NamedPredicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In ||
-        predicate instanceof Range) {
+    } else if (predicate instanceof Predicates.NamedIn ||
+        predicate instanceof Predicates.NamedRangePredicate) {
       Set<Integer> possibleValues = Sets.newHashSet();
       for (int i = 0; i < values.size(); i += 1) {
         Set<S> items = values.get(i);

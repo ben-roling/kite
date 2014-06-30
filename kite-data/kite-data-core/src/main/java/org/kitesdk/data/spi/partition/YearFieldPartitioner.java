@@ -23,6 +23,8 @@ import java.util.Calendar;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.Predicates;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
     value="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE",
@@ -40,16 +42,16 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public Predicate<Integer> project(Predicate<Long> predicate) {
+  public Predicate<Integer> project(NamedPredicate<Long> predicate) {
     // year is the only time field that can be projected
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
-      return ((Predicates.In<Long>) predicate).transform(this);
-    } else if (predicate instanceof Range) {
+    } else if (predicate instanceof Predicates.NamedIn) {
+      return ((Predicates.NamedIn<Long>) predicate).transform(this);
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
       return Predicates.transformClosed(
           Predicates.adjustClosed(
-              (Range<Long>) predicate, DiscreteDomains.longs()),
+              (NamedRangePredicate<Long>) predicate, DiscreteDomains.longs()),
           this);
     } else {
       return null;
@@ -57,27 +59,28 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public Predicate<Integer> projectStrict(Predicate<Long> predicate) {
+  public Predicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
-    } else if (predicate instanceof Predicates.In) {
+    } else if (predicate instanceof Predicates.NamedIn) {
       // not enough information to make a judgement on behalf of the
       // original predicate. the year may match when month does not
       return null;
-    } else if (predicate instanceof Range) {
+    } else if (predicate instanceof Predicates.NamedRangePredicate) {
       //return Predicates.transformClosedConservative(
       //    (Range<Long>) predicate, this, DiscreteDomains.integers());
-      Range<Long> adjusted = Predicates.adjustClosed(
-          (Range<Long>) predicate, DiscreteDomains.longs());
-      if (adjusted.hasLowerBound()) {
-        long lower = adjusted.lowerEndpoint();
+      NamedRangePredicate<Long> adjusted = Predicates.adjustClosed(
+          (NamedRangePredicate<Long>) predicate, DiscreteDomains.longs());
+      Range<Long> adjustedRange = adjusted.getPredicate();
+      if (adjustedRange.hasLowerBound()) {
+        long lower = adjustedRange.lowerEndpoint();
         int lowerImage = apply(lower);
         if (apply(lower - 1) == lowerImage) {
           // at least one excluded value maps to the same lower endpoint
           lowerImage += 1;
         }
-        if (adjusted.hasUpperBound()) {
-          long upper = adjusted.upperEndpoint();
+        if (adjustedRange.hasUpperBound()) {
+          long upper = adjustedRange.upperEndpoint();
           int upperImage = apply(upper);
           if (apply(upper + 1) == upperImage) {
             // at least one excluded value maps to the same upper endpoint
@@ -89,8 +92,8 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
         } else {
           return Ranges.atLeast(lowerImage);
         }
-      } else if (adjusted.hasUpperBound()) {
-        long upper = adjusted.upperEndpoint();
+      } else if (adjustedRange.hasUpperBound()) {
+        long upper = adjustedRange.upperEndpoint();
         int upperImage = apply(upper);
         if (apply(upper + 1) == upperImage) {
           // at least one excluded value maps to the same upper endpoint

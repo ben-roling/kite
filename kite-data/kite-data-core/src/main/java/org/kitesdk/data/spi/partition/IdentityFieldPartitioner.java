@@ -19,6 +19,7 @@ import com.google.common.base.Predicate;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import com.google.common.base.Objects;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
@@ -67,12 +68,12 @@ public class IdentityFieldPartitioner<S extends Comparable> extends FieldPartiti
   }
 
   @Override
-  public Predicate<S> project(Predicate<S> predicate) {
+  public Predicate<S> project(NamedPredicate<S> predicate) {
     return predicate;
   }
 
   @Override
-  public Predicate<S> projectStrict(Predicate<S> predicate) {
+  public Predicate<S> projectStrict(NamedPredicate<S> predicate) {
     return predicate;
   }
 

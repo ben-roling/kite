@@ -124,7 +124,7 @@ public class Constraints implements Serializable{
         timeFields.add(field);
       }
       // remove the field if it is satisfied by the StorageKey
-      Predicate original = unsatisfied.get(field);
+      NamedPredicate original = unsatisfied.get(field);
       if (original != null) {
         Predicate isSatisfiedBy = fp.projectStrict(original);
         LOG.debug("original: " + original + ", strict: " + isSatisfiedBy);
@@ -288,7 +288,7 @@ public class Constraints implements Serializable{
         return false;
       }
 
-      Predicate predicate = entry.getValue();
+      NamedPredicate predicate = entry.getValue();
       if (!(predicate instanceof Predicates.Exists)) {
         boolean satisfied = false;
         for (FieldPartitioner fp : fps) {
@@ -400,7 +400,7 @@ public class Constraints implements Serializable{
    * @return a Predicate for the given field, or null if none is set
    */
   @VisibleForTesting
-  Predicate get(String name) {
+  NamedPredicate get(String name) {
     return constraints.get(name);
   }
 
@@ -603,7 +603,7 @@ public class Constraints implements Serializable{
 
       // this is fail-fast: if the key fails a constraint, then drop it
       for (FieldPartitioner fp : strategy.getFieldPartitioners()) {
-        Predicate constraint = predicates.get(fp.getSourceName());
+        NamedPredicate constraint = predicates.get(fp.getSourceName());
         if (constraint == null) {
           // no constraints => anything matches
           continue;
@@ -615,7 +615,7 @@ public class Constraints implements Serializable{
           timeFields.add(fp.getSourceName());
         }
 
-        Predicate projectedConstraint = fp.project(constraint);
+         Predicate projectedConstraint = fp.project(constraint);
         if (projectedConstraint != null && !(projectedConstraint.apply(pValue))) {
           return false;
         }

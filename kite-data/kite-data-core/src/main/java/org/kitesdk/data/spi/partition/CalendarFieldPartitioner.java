@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
 
 /**
  * A {@link FieldPartitioner} that extracts the value of a {@link Calendar} field,
@@ -56,12 +57,12 @@ public class CalendarFieldPartitioner extends FieldPartitioner<Long, Integer> {
   }
 
   @Override
-  public Predicate<Integer> project(Predicate<Long> predicate) {
+  public Predicate<Integer> project(NamedPredicate<Long> predicate) {
     return null;
   }
 
   @Override
-  public Predicate<Integer> projectStrict(Predicate<Long> predicate) {
+  public Predicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
     return null;
   }
 

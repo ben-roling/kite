@@ -34,6 +34,8 @@ import org.kitesdk.data.TestHelpers;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedIn;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +55,7 @@ public class TestPartitionerProjection {
         new DateFormatPartitioner("timestamp", "date", "yyyy-MM-dd");
 
     Predicate<String> projected = fp.project(
-        Ranges.open(octInstant, octInstant + ONE_DAY_MILLIS));
+        Predicates.open(octInstant, octInstant + ONE_DAY_MILLIS));
     Assert.assertEquals(Ranges.closed("2013-10-12", "2013-10-13"), projected);
   }
 
@@ -66,7 +68,7 @@ public class TestPartitionerProjection {
     format.setTimeZone(TimeZone.getTimeZone("UTC"));
 
     Predicate<String> projected = fp.projectStrict(
-        Ranges.open(sepInstant, novInstant));
+        Predicates.open(sepInstant, novInstant));
     Assert.assertEquals(Ranges.closed("2013-09-13", "2013-11-10"), projected);
   }
 
@@ -87,45 +89,45 @@ public class TestPartitionerProjection {
         new YearFieldPartitioner("timestamp", "year");
     // Range within a year
     Assert.assertEquals(Ranges.singleton(2013),
-        fp.project(Ranges.open(sepInstant, novInstant)));
+        fp.project(Predicates.open(sepInstant, novInstant)));
     Assert.assertNull("No year value definitely satisfies original predicate",
-        fp.projectStrict(Ranges.open(sepInstant, novInstant)));
+        fp.projectStrict(Predicates.open(sepInstant, novInstant)));
 
     // Range spanning a year
     Assert.assertEquals(Ranges.closed(2012, 2013), fp.project(
-        Ranges.open(sepInstant - ONE_YEAR_MILLIS, novInstant)));
+        Predicates.open(sepInstant - ONE_YEAR_MILLIS, novInstant)));
     Assert.assertNull("No year value definitely satisfies original predicate",
-        fp.projectStrict(Ranges.open(
+        fp.projectStrict(Predicates.open(
             sepInstant - ONE_YEAR_MILLIS, novInstant)));
 
     // Range spanning two years
-    Assert.assertEquals(Ranges.closed(2012, 2014), fp.project(Ranges.open(
+    Assert.assertEquals(Ranges.closed(2012, 2014), fp.project(Predicates.open(
         sepInstant - ONE_YEAR_MILLIS, novInstant + ONE_YEAR_MILLIS)));
-    Assert.assertEquals(Ranges.singleton(2013), fp.projectStrict(Ranges.open(
+    Assert.assertEquals(Ranges.singleton(2013), fp.projectStrict(Predicates.open(
         sepInstant - ONE_YEAR_MILLIS, novInstant + ONE_YEAR_MILLIS)));
 
     // open ended ranges
     Assert.assertEquals(Ranges.atLeast(2013),
-        fp.project(Ranges.greaterThan(sepInstant)));
+        fp.project(Predicates.greaterThan(sepInstant)));
     Assert.assertEquals(Ranges.atLeast(2014),
-        fp.projectStrict(Ranges.greaterThan(sepInstant)));
+        fp.projectStrict(Predicates.greaterThan(sepInstant)));
     Assert.assertEquals(Ranges.atMost(2013),
-        fp.project(Ranges.atMost(sepInstant)));
+        fp.project(Predicates.atMost(sepInstant)));
     Assert.assertEquals(Ranges.atMost(2012),
-        fp.projectStrict(Ranges.atMost(sepInstant)));
+        fp.projectStrict(Predicates.atMost(sepInstant)));
 
     // edge cases
     long first2013 = new DateTime(2013, 1, 1, 0, 0, DateTimeZone.UTC)
         .getMillis();
     long last2012 = first2013 - 1;
     Assert.assertEquals(Ranges.atMost(2012),
-        fp.projectStrict(Ranges.atMost(last2012)));
+        fp.projectStrict(Predicates.atMost(last2012)));
     Assert.assertEquals(Ranges.atMost(2012),
-        fp.projectStrict(Ranges.lessThan(first2013)));
+        fp.projectStrict(Predicates.lessThan(first2013)));
     Assert.assertEquals(Ranges.atLeast(2013),
-        fp.projectStrict(Ranges.atLeast(first2013)));
+        fp.projectStrict(Predicates.atLeast(first2013)));
     Assert.assertEquals(Ranges.atLeast(2013),
-        fp.projectStrict(Ranges.greaterThan(last2012)));
+        fp.projectStrict(Predicates.greaterThan(last2012)));
   }
 
   @Test
@@ -156,8 +158,8 @@ public class TestPartitionerProjection {
     for (CalendarFieldPartitioner fp : fps) {
       Assert.assertNull(fp.project(Predicates.in(octInstant)));
       Assert.assertNull(fp.projectStrict(Predicates.in(octInstant)));
-      Assert.assertNull(fp.project(Ranges.greaterThan(sepInstant)));
-      Assert.assertNull(fp.projectStrict(Ranges.open(octInstant, novInstant)));
+      Assert.assertNull(fp.project(Predicates.greaterThan(sepInstant)));
+      Assert.assertNull(fp.projectStrict(Predicates.open(octInstant, novInstant)));
     }
   }
 
@@ -167,8 +169,8 @@ public class TestPartitionerProjection {
     FieldPartitioner<Object, Integer> fp = new HashFieldPartitioner("name", 50);
     // cannot enumerate all inputs, so we can't calculate the set of potential
     // hash values other than all hash values mod the number of buckets
-    Assert.assertNull(fp.project((Predicate)Ranges.open("a", "b")));
-    Assert.assertNull(fp.projectStrict((Predicate) Ranges.open("a", "b")));
+    Assert.assertNull(fp.project((NamedPredicate) Predicates.open("a", "b")));
+    Assert.assertNull(fp.projectStrict((NamedPredicate) Predicates.open("a", "b")));
   }
 
   @Test
@@ -176,16 +178,16 @@ public class TestPartitionerProjection {
   public void testHashFieldPartitionerSetPredicate() {
     FieldPartitioner<Object, Integer> fp = new HashFieldPartitioner("name", 50);
     Assert.assertEquals(Predicates.in(fp.apply("a"), fp.apply("b")),
-        fp.project((Predicate)Predicates.in("a", "b")));
+        fp.project((NamedPredicate)Predicates.in("a", "b")));
     // the set of inputs that result in a particular value is not closed
-    Assert.assertNull(fp.projectStrict((Predicate) Predicates.in("a")));
+    Assert.assertNull(fp.projectStrict((NamedPredicate) Predicates.in("a")));
   }
 
   @Test
   public void testIdentityFieldPartitionerRangePredicate() {
     FieldPartitioner<String, String> fp =
         new IdentityFieldPartitioner<String>("str", "str_copy", String.class, 50);
-    Range<String> r = Ranges.openClosed("a", "b");
+    NamedRangePredicate<String> r = Predicates.openClosed("a", "b");
     Assert.assertEquals(r, fp.project(r));
     Assert.assertEquals(r, fp.projectStrict(r));
   }
@@ -203,40 +205,40 @@ public class TestPartitionerProjection {
   public void testIntRangeFieldPartitionerRangePredicate() {
     final FieldPartitioner<Integer, Integer> fp =
         new IntRangeFieldPartitioner("num", 5, 10, 15, 20);
-    Assert.assertEquals(Ranges.closed(1, 2), fp.project(Ranges.open(5, 15)));
-    Assert.assertEquals(Ranges.closed(0, 2), fp.project(Ranges.open(4, 15)));
+    Assert.assertEquals(Ranges.closed(1, 2), fp.project(Predicates.open(5, 15)));
+    Assert.assertEquals(Ranges.closed(0, 2), fp.project(Predicates.open(4, 15)));
 
     // even though 21 is above the last bound, the range is valid if open
-    Assert.assertEquals(Ranges.closed(0, 3), fp.project(Ranges.open(4, 21)));
+    Assert.assertEquals(Ranges.closed(0, 3), fp.project(Predicates.open(4, 21)));
     TestHelpers.assertThrows("Should not project an invalid range",
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        fp.project(Ranges.openClosed(5, 21));
+        fp.project(Predicates.openClosed(5, 21));
       }
     });
 
     Assert.assertEquals(Ranges.closed(1, 2),
-        fp.projectStrict(Ranges.open(5, 15)));
+        fp.projectStrict(Predicates.open(5, 15)));
     Assert.assertEquals(Ranges.singleton(1),
-        fp.projectStrict(Ranges.open(5, 14)));
+        fp.projectStrict(Predicates.open(5, 14)));
     Assert.assertEquals(Ranges.atMost(2),
-        fp.projectStrict(Ranges.atMost(15)));
+        fp.projectStrict(Predicates.atMost(15)));
     Assert.assertEquals(Ranges.atMost(3),
-        fp.projectStrict(Ranges.lessThan(21)));
+        fp.projectStrict(Predicates.lessThan(21)));
 
-    Assert.assertNull(fp.projectStrict(Ranges.closed(15, 16)));
+    Assert.assertNull(fp.projectStrict(Predicates.closed(15, 16)));
 
     // unbounded range is no problem, although accepted values would be
     // rejected if partitioned
     Assert.assertEquals(Ranges.atLeast(3),
-        fp.projectStrict(Ranges.atLeast(14)));
+        fp.projectStrict(Predicates.atLeast(14)));
 
     TestHelpers.assertThrows("Should not project an invalid range",
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        fp.projectStrict(Ranges.openClosed(5, 21));
+        fp.projectStrict(Predicates.openClosed(5, 21));
       }
     });
 
@@ -275,39 +277,39 @@ public class TestPartitionerProjection {
         new RangeFieldPartitioner("str", "str_bound", new String[]{"a", "b", "c"});
     // projected to sets because the range ["a", "b"] includes "aa", etc.
     Assert.assertEquals(Predicates.in("a"),
-        fp.project(Ranges.atMost("a")));
+        fp.project(Predicates.atMost("a")));
     Assert.assertEquals(Predicates.in("a", "b"),
-        fp.project(Ranges.closedOpen("a", "b")));
+        fp.project(Predicates.closedOpen("a", "b")));
     Assert.assertEquals(Predicates.in("a", "b"),
-        fp.project(Ranges.closedOpen("a", "aa")));
+        fp.project(Predicates.closedOpen("a", "aa")));
     Assert.assertEquals(Predicates.in("a", "b", "c"),
-        fp.project(Ranges.closedOpen("a", "ba")));
+        fp.project(Predicates.closedOpen("a", "ba")));
     Assert.assertEquals(Predicates.in("a", "b", "c"),
-        fp.project(Ranges.closedOpen("0", "c")));
+        fp.project(Predicates.closedOpen("0", "c")));
     Assert.assertEquals(Predicates.in("c"),
-        fp.project(Ranges.atLeast("c")));
+        fp.project(Predicates.atLeast("c")));
 
     TestHelpers.assertThrows("Cannot project endpoint outside of bounds",
         IllegalArgumentException.class, new Runnable() {
       @Override
       public void run() {
-        fp.project(Ranges.atMost("cc"));
+        fp.project(Predicates.atMost("cc"));
       }
     });
 
-    Assert.assertNull(fp.projectStrict(Ranges.lessThan("a")));
+    Assert.assertNull(fp.projectStrict(Predicates.lessThan("a")));
     Assert.assertEquals(Predicates.in("a"),
-        fp.projectStrict(Ranges.atMost("a")));
+        fp.projectStrict(Predicates.atMost("a")));
     Assert.assertEquals(Predicates.in("a"),
-        fp.projectStrict(Ranges.lessThan("b")));
+        fp.projectStrict(Predicates.lessThan("b")));
     Assert.assertEquals(Predicates.in("a", "b"),
-        fp.projectStrict(Ranges.atMost("b")));
+        fp.projectStrict(Predicates.atMost("b")));
     Assert.assertEquals(Predicates.in("c"),
-        fp.projectStrict(Ranges.atLeast("b")));
+        fp.projectStrict(Predicates.atLeast("b")));
     Assert.assertEquals(Predicates.in("c"),
-        fp.projectStrict(Ranges.greaterThan("b")));
+        fp.projectStrict(Predicates.greaterThan("b")));
     Assert.assertEquals(Predicates.in("a"),
-        fp.projectStrict(Ranges.atMost("ab")));
+        fp.projectStrict(Predicates.atMost("ab")));
   }
 
   @Test
@@ -348,39 +350,39 @@ public class TestPartitionerProjection {
 
     // projection: any set that has one element matching the predicate
     Assert.assertEquals(Predicates.in(0, 1, 2),
-        fp.project(Ranges.closed(0, 50)));
-    Assert.assertEquals(Predicates.in(0, 1), fp.project(Ranges.closed(5, 12)));
-    Assert.assertEquals(Predicates.in(1, 2), fp.project(Ranges.open(7, 14)));
+        fp.project(Predicates.closed(0, 50)));
+    Assert.assertEquals(Predicates.in(0, 1), fp.project(Predicates.closed(5, 12)));
+    Assert.assertEquals(Predicates.in(1, 2), fp.project(Predicates.open(7, 14)));
     Assert.assertEquals(Predicates.in(0, 1),
-        fp.project(Ranges.closedOpen(7, 13)));
+        fp.project(Predicates.closedOpen(7, 13)));
     Assert.assertEquals(Predicates.in(1, 2),
-        fp.project(Ranges.openClosed(7, 13)));
-    Assert.assertEquals(Predicates.in(0), fp.project(Ranges.atMost(10)));
-    Assert.assertEquals(Predicates.in(0, 1), fp.project(Ranges.atLeast(40)));
-    Assert.assertEquals(Predicates.in(0), fp.project(Ranges.greaterThan(44)));
-    Assert.assertEquals(Predicates.in(0, 1), fp.project(Ranges.lessThan(13)));
-    Assert.assertEquals(null, fp.project(Ranges.lessThan(5)));
+        fp.project(Predicates.openClosed(7, 13)));
+    Assert.assertEquals(Predicates.in(0), fp.project(Predicates.atMost(10)));
+    Assert.assertEquals(Predicates.in(0, 1), fp.project(Predicates.atLeast(40)));
+    Assert.assertEquals(Predicates.in(0), fp.project(Predicates.greaterThan(44)));
+    Assert.assertEquals(Predicates.in(0, 1), fp.project(Predicates.lessThan(13)));
+    Assert.assertEquals(null, fp.project(Predicates.lessThan(5)));
 
     // strict projection: any set for where all elements match the predicate
     Assert.assertEquals(Predicates.in(0, 1, 2),
-        fp.projectStrict(Ranges.closed(0, 50)));
+        fp.projectStrict(Predicates.closed(0, 50)));
     Assert.assertEquals(Predicates.in(1, 2),
-        fp.projectStrict(Ranges.closed(11, 44)));
+        fp.projectStrict(Predicates.closed(11, 44)));
     Assert.assertEquals(Predicates.in(2),
-        fp.projectStrict(Ranges.open(11, 44)));
+        fp.projectStrict(Predicates.open(11, 44)));
     Assert.assertEquals(Predicates.in(2),
-        fp.projectStrict(Ranges.closedOpen(13, 44)));
+        fp.projectStrict(Predicates.closedOpen(13, 44)));
     Assert.assertEquals(Predicates.in(2),
-        fp.projectStrict(Ranges.openClosed(11, 39)));
+        fp.projectStrict(Predicates.openClosed(11, 39)));
     Assert.assertEquals(Predicates.in(1, 2),
-        fp.projectStrict(Ranges.atMost(44)));
+        fp.projectStrict(Predicates.atMost(44)));
     Assert.assertEquals(Predicates.in(1, 2),
-        fp.projectStrict(Ranges.atLeast(11)));
+        fp.projectStrict(Predicates.atLeast(11)));
     Assert.assertEquals(Predicates.in(2),
-        fp.projectStrict(Ranges.greaterThan(11)));
+        fp.projectStrict(Predicates.greaterThan(11)));
     Assert.assertEquals(Predicates.in(2),
-        fp.projectStrict(Ranges.lessThan(44)));
-    Assert.assertEquals(null, fp.projectStrict(Ranges.closed(20, 30)));
+        fp.projectStrict(Predicates.lessThan(44)));
+    Assert.assertEquals(null, fp.projectStrict(Predicates.closed(20, 30)));
   }
 
   @Test
