@@ -55,6 +55,10 @@ public abstract class Predicates {
     
     @Override
     public String getName() {
+      if (range.hasLowerBound() && range.hasUpperBound()
+          && range.lowerEndpoint().equals(range.upperEndpoint())) {
+        return range.lowerEndpoint().toString();
+      }
       StringBuffer buffer = new StringBuffer();
       if (range.hasLowerBound()) {
         buffer.append(range.lowerBoundType() == BoundType.CLOSED ? "[" : "(");
@@ -246,7 +250,21 @@ public abstract class Predicates {
 
     @Override
     public String getName() {
-      return "in(" + Iterables.toString(set) + ")";
+      StringBuffer buffer = new StringBuffer();
+      buffer.append("in(");
+      int numValues = 0;
+      for (T value : set) {
+        if (numValues > 0) {
+          buffer.append(",");
+        }
+        buffer.append(Conversions.makeString(value));
+        numValues++;
+      }
+      buffer.append(")");
+      if (numValues == 1) {
+        return Conversions.makeString(Iterables.getOnlyElement(set));
+      }
+      return buffer.toString();
     }
 
     Set<T> getSet() {
