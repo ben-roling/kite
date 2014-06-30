@@ -18,6 +18,7 @@ package org.kitesdk.data.spi;
 
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.DiscreteDomain;
@@ -26,10 +27,15 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public abstract class Predicates {
   public static abstract class NamedPredicate<T> implements Predicate<T> {
     public abstract String getName();
+    
+    public String toString() {
+      return Objects.toStringHelper(this).add("name", getName()).toString();
+    }
   }
   
   public static class NamedRange<T extends Comparable<T>> extends NamedPredicate<T> {
@@ -49,11 +55,23 @@ public abstract class Predicates {
     
     @Override
     public String getName() {
-      return (range.lowerBoundType() == BoundType.CLOSED ? "[" : "(")
-        + (range.hasLowerBound() ? range.lowerEndpoint() : "-inf")
-        + ","
-        + (range.hasUpperBound() ? range.upperEndpoint() : "inf")
-        + (range.upperBoundType() == BoundType.CLOSED ? "]" : ")");
+      StringBuffer buffer = new StringBuffer();
+      if (range.hasLowerBound()) {
+        buffer.append(range.lowerBoundType() == BoundType.CLOSED ? "[" : "(");
+        buffer.append(range.lowerEndpoint());
+      }
+      else {
+        buffer.append("(-inf");
+      }
+      buffer.append(",");
+      if (range.hasUpperBound()) {
+        buffer.append(range.upperEndpoint());
+        buffer.append(range.upperBoundType() == BoundType.CLOSED ? "]" : ")");
+      }
+      else {
+        buffer.append("inf)");
+      } 
+      return buffer.toString();
     }
     
     @Override
@@ -184,35 +202,42 @@ public abstract class Predicates {
     }
     
     @Override
-    public boolean apply(T input) {
-      return (input != null);
+    public boolean apply(@Nullable T value) {
+      return (value != null);
     }
 
     @Override
     public String getName() {
       return "exists()";
     }
-
-    @Override
-    public String toString() {
-      return Objects.toStringHelper(this).toString();
-    }
-
   }
   
   public static class NamedIn<T> extends NamedPredicate<T> {
-    private final Set<T> set;
+    // ImmutableSet entries are non-null
+    private final ImmutableSet<T> set;
     
     public NamedIn(Iterable<T> values) {
       set = ImmutableSet.copyOf(values);
+      Preconditions.checkArgument(set.size() > 0, "No values to match");
     }
     
     public NamedIn(T... values) {
       set = ImmutableSet.copyOf(values);
     }
+         
+    @Override
+    public boolean apply(@Nullable T test) {
+      // Set#contains may throw NPE, depending on implementation
+      return (test != null) && set.contains(test);
+    }
 
-    public NamedPredicate<T> filter(NamedPredicate<T> additional) {
-      return new NamedIn<T>(Iterables.filter(set, additional));
+    public NamedIn<T> filter(NamedPredicate<T> predicate) {
+      try {
+        return new NamedIn<T>(Iterables.filter(set, predicate));
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            "Filter predicate produces empty set", e);
+      }
     }
     
     public <V> NamedIn<V> transform(Function<? super T, V> function) {
@@ -221,15 +246,10 @@ public abstract class Predicates {
 
     @Override
     public String getName() {
-      return "in(" + set + ")";
-    }
-    
-    @Override
-    public boolean apply(T input) {
-      return (input != null) && set.contains(input);
+      return "in(" + Iterables.toString(set) + ")";
     }
 
-    public Set<T> getSet() {
+    Set<T> getSet() {
       return set;
     }
     
