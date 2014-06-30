@@ -18,7 +18,6 @@ package org.kitesdk.data.spi;
 
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.DiscreteDomain;
@@ -27,29 +26,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
 import java.util.Set;
-import javax.annotation.Nullable;
 
 public abstract class Predicates {
   public static abstract class NamedPredicate<T> implements Predicate<T> {
-    private Predicate<T> predicate;
-    
-    public NamedPredicate(Predicate<T> predicate) {
-      this.predicate = predicate;
-    }
-    
     public abstract String getName();
-    
-    @Override
-    public boolean apply(T input) {
-      return predicate.apply(input);
-    }  
   }
   
   public static class NamedRange<T extends Comparable<T>> extends NamedPredicate<T> {
     private final Range<T> range;
     
     public NamedRange(Range<T> range) {
-      super(range);
       this.range = range;
     }
     
@@ -68,6 +54,11 @@ public abstract class Predicates {
         + ","
         + (range.hasUpperBound() ? range.upperEndpoint() : "inf")
         + (range.upperBoundType() == BoundType.CLOSED ? "]" : ")");
+    }
+    
+    @Override
+    public boolean apply(T input) {
+      return range.apply(input);
     }
     
     @Override
@@ -190,12 +181,11 @@ public abstract class Predicates {
     public static final Exists INSTANCE = new Exists();
 
     private Exists() {
-      super(new Predicate<T>() {
-
-        @Override
-        public boolean apply(@Nullable T value) {
-          return (value != null);
-        }});
+    }
+    
+    @Override
+    public boolean apply(T input) {
+      return (input != null);
     }
 
     @Override
@@ -214,12 +204,10 @@ public abstract class Predicates {
     private final Set<T> set;
     
     public NamedIn(Iterable<T> values) {
-      super(new In<T>(values));
       set = ImmutableSet.copyOf(values);
     }
     
     public NamedIn(T... values) {
-      super(new In<T>(values));
       set = ImmutableSet.copyOf(values);
     }
 
@@ -234,6 +222,11 @@ public abstract class Predicates {
     @Override
     public String getName() {
       return "in(" + set + ")";
+    }
+    
+    @Override
+    public boolean apply(T input) {
+      return (input != null) && set.contains(input);
     }
 
     public Set<T> getSet() {
@@ -255,61 +248,6 @@ public abstract class Predicates {
     @Override
     public int hashCode() {
       return Objects.hashCode(set);
-    }
-  }
-
-  private static class In<T> implements Predicate<T> {
-    // ImmutableSet entries are non-null
-    private final ImmutableSet<T> set;
-
-    public In(Iterable<T> values) {
-      this.set = ImmutableSet.copyOf(values);
-      Preconditions.checkArgument(set.size() > 0, "No values to match");
-    }
-
-    public In(T... values) {
-      this.set = ImmutableSet.copyOf(values);
-    }
-
-    @Override
-    public boolean apply(@Nullable T test) {
-      // Set#contains may throw NPE, depending on implementation
-      return (test != null) && set.contains(test);
-    }
-
-    public In<T> filter(Predicate<? super T> predicate) {
-      try {
-        return new In<T>(Iterables.filter(set, predicate));
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException(
-            "Filter predicate produces empty set", e);
-      }
-    }
-
-    public <V> In<V> transform(Function<? super T, V> function) {
-      return new In<V>(Iterables.transform(set, function));
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      return Objects.equal(set, ((In) o).set);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(set);
-    }
-
-    @Override
-    public String toString() {
-      return Objects.toStringHelper(this).add("set", set).toString();
     }
   }
 }
