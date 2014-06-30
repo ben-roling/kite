@@ -45,10 +45,10 @@ public abstract class Predicates {
     }  
   }
   
-  public static class NamedRangePredicate<T extends Comparable<T>> extends NamedPredicate<T> {
+  public static class NamedRange<T extends Comparable<T>> extends NamedPredicate<T> {
     private final Range<T> range;
     
-    public NamedRangePredicate(Range<T> range) {
+    public NamedRange(Range<T> range) {
       super(range);
       this.range = range;
     }
@@ -57,8 +57,8 @@ public abstract class Predicates {
       return range;
     }
     
-    public NamedRangePredicate<T> intersection(NamedRangePredicate<T> other) {
-      return new NamedRangePredicate<T>(getPredicate().intersection(other.getPredicate()));
+    public NamedRange<T> intersection(NamedRange<T> other) {
+      return new NamedRange<T>(getPredicate().intersection(other.getPredicate()));
     }
     
     @Override
@@ -80,7 +80,7 @@ public abstract class Predicates {
         return false;
       }
 
-      return Objects.equal(range, ((NamedRangePredicate) o).range);
+      return Objects.equal(range, ((NamedRange) o).range);
     }
 
     @Override
@@ -89,36 +89,36 @@ public abstract class Predicates {
     }
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> atLeast(T value) {
-    return new NamedRangePredicate<T>(Ranges.atLeast(value));
+  public static <T extends Comparable<T>> NamedRange<T> atLeast(T value) {
+    return new NamedRange<T>(Ranges.atLeast(value));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> greaterThan(T value) {
-    return new NamedRangePredicate<T>(Ranges.greaterThan(value));
+  public static <T extends Comparable<T>> NamedRange<T> greaterThan(T value) {
+    return new NamedRange<T>(Ranges.greaterThan(value));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> atMost(T value) {
-    return new NamedRangePredicate<T>(Ranges.atMost(value));
+  public static <T extends Comparable<T>> NamedRange<T> atMost(T value) {
+    return new NamedRange<T>(Ranges.atMost(value));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> lessThan(T value) {
-    return new NamedRangePredicate<T>(Ranges.lessThan(value));
+  public static <T extends Comparable<T>> NamedRange<T> lessThan(T value) {
+    return new NamedRange<T>(Ranges.lessThan(value));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> closed(T lower, T upper) {
-    return new NamedRangePredicate<T>(Ranges.closed(lower, upper));
+  public static <T extends Comparable<T>> NamedRange<T> closed(T lower, T upper) {
+    return new NamedRange<T>(Ranges.closed(lower, upper));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> open(T lower, T upper) {
-    return new NamedRangePredicate<T>(Ranges.open(lower, upper));
+  public static <T extends Comparable<T>> NamedRange<T> open(T lower, T upper) {
+    return new NamedRange<T>(Ranges.open(lower, upper));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> openClosed(T lower, T upper) {
-    return new NamedRangePredicate<T>(Ranges.openClosed(lower, upper));
+  public static <T extends Comparable<T>> NamedRange<T> openClosed(T lower, T upper) {
+    return new NamedRange<T>(Ranges.openClosed(lower, upper));
   }
   
-  public static <T extends Comparable<T>> NamedRangePredicate<T> closedOpen(T lower, T upper) {
-    return new NamedRangePredicate<T>(Ranges.closedOpen(lower, upper));
+  public static <T extends Comparable<T>> NamedRange<T> closedOpen(T lower, T upper) {
+    return new NamedRange<T>(Ranges.closedOpen(lower, upper));
   }
   
   @SuppressWarnings("unchecked")
@@ -137,7 +137,7 @@ public abstract class Predicates {
   // This should be a method on Range, like In#transform.
   // Unfortunately, Range is final so we will probably need to re-implement it.
   public static <S extends Comparable<S>, T extends Comparable>
-  Range<T> transformClosed(NamedRangePredicate<S> predicate, Function<? super S, T> function) {
+  Range<T> transformClosed(NamedRange<S> predicate, Function<? super S, T> function) {
     Range<S> range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       if (range.hasUpperBound()) {
@@ -155,7 +155,7 @@ public abstract class Predicates {
   }
 
   public static <T extends Comparable<T>>
-  NamedRangePredicate<T> adjustClosed(NamedRangePredicate<T> predicate, DiscreteDomain<T> domain) {
+  NamedRange<T> adjustClosed(NamedRange<T> predicate, DiscreteDomain<T> domain) {
     Range<T> range = predicate.getPredicate();
     // adjust to a closed range to avoid catching extra keys
     if (range.hasLowerBound()) {

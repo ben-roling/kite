@@ -26,7 +26,7 @@ import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
     value="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE",
@@ -77,8 +77,8 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<S>) predicate).transform(this);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
-      Range range = ((NamedRangePredicate) predicate).getPredicate();
+    } else if (predicate instanceof Predicates.NamedRange) {
+      Range range = ((NamedRange) predicate).getPredicate();
       Set<Integer> possibleValues = Sets.newHashSet();
       for (int i = 0; i < values.size(); i += 1) {
         Set<S> items = values.get(i);
@@ -107,7 +107,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn ||
-        predicate instanceof Predicates.NamedRangePredicate) {
+        predicate instanceof Predicates.NamedRange) {
       Set<Integer> possibleValues = Sets.newHashSet();
       for (int i = 0; i < values.size(); i += 1) {
         Set<S> items = values.get(i);

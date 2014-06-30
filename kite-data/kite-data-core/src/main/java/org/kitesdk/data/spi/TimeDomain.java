@@ -34,7 +34,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.PartitionStrategy;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 
 @Immutable
@@ -88,8 +88,8 @@ public class TimeDomain {
   public Predicate<Marker> project(Predicate<Long> predicate) {
     if (predicate instanceof Predicates.NamedIn) {
       return new TimeSetPredicate((Predicates.NamedIn<Long>) predicate);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
-      return new TimeRangePredicate((NamedRangePredicate<Long>) predicate);
+    } else if (predicate instanceof Predicates.NamedRange) {
+      return new TimeRangePredicate((NamedRange<Long>) predicate);
     } else {
       return null;
     }
@@ -100,8 +100,8 @@ public class TimeDomain {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return null;
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
-      return new TimeRangeStrictPredicate((NamedRangePredicate<Long>) predicate);
+    } else if (predicate instanceof Predicates.NamedRange) {
+      return new TimeRangeStrictPredicate((NamedRange<Long>) predicate);
     } else {
       return null;
     }
@@ -145,7 +145,7 @@ public class TimeDomain {
    * that would be accepted by the original time range.
    */
   private class TimeRangePredicate extends TimeRangePredicateImpl {
-    private TimeRangePredicate(NamedRangePredicate<Long> timeRange) {
+    private TimeRangePredicate(NamedRange<Long> timeRange) {
       // adjust the range end-points if exclusive to avoid extra partitions
       super(timeRange, true /* accept end-points */ );
     }
@@ -156,7 +156,7 @@ public class TimeDomain {
    * must be accepted by the original time range.
    */
   private class TimeRangeStrictPredicate extends TimeRangePredicateImpl {
-    private TimeRangeStrictPredicate(NamedRangePredicate<Long> timeRange) {
+    private TimeRangeStrictPredicate(NamedRange<Long> timeRange) {
       super(timeRange, false /* exclude end-points */ );
     }
   }
@@ -165,13 +165,13 @@ public class TimeDomain {
    * A common implementation class for time-based range predicates.
    */
   private class TimeRangePredicateImpl implements Predicate<Marker> {
-    private final NamedRangePredicate<Long> predicate;
+    private final NamedRange<Long> predicate;
     private final String[] names;
     private final int[] lower;
     private final int[] upper;
     private final boolean acceptEqual;
 
-    private TimeRangePredicateImpl(NamedRangePredicate<Long> timeRange, boolean acceptEqual) {
+    private TimeRangePredicateImpl(NamedRange<Long> timeRange, boolean acceptEqual) {
       this.predicate = Predicates.adjustClosed(timeRange, DiscreteDomains.longs());
       this.acceptEqual = acceptEqual;
 
@@ -320,9 +320,9 @@ public class TimeDomain {
       // instantiate directly because the add method projects the predicate
       return new KeyRangeIterable.SetGroupIterator(
           (Predicates.NamedIn) timePredicate, (List) partitioners, inner);
-    } else if (timePredicate instanceof NamedRangePredicate) {
+    } else if (timePredicate instanceof NamedRange) {
       return new TimeRangeIterator(
-          ((NamedRangePredicate<Long>) timePredicate).getPredicate(), partitioners, inner);
+          ((NamedRange<Long>) timePredicate).getPredicate(), partitioners, inner);
     }
     return null;
   }

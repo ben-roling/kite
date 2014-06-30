@@ -32,7 +32,7 @@ import org.junit.Test;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.TestHelpers;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 import org.kitesdk.data.spi.partition.HashFieldPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -346,7 +346,7 @@ public class TestConstraints {
   }
   
   private static Range getRange(NamedPredicate predicate) {
-    return ((NamedRangePredicate) predicate).getPredicate();
+    return ((NamedRange) predicate).getPredicate();
   }
 
   @Test

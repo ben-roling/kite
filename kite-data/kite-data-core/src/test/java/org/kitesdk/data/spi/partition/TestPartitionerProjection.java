@@ -35,7 +35,7 @@ import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedIn;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -187,7 +187,7 @@ public class TestPartitionerProjection {
   public void testIdentityFieldPartitionerRangePredicate() {
     FieldPartitioner<String, String> fp =
         new IdentityFieldPartitioner<String>("str", "str_copy", String.class, 50);
-    NamedRangePredicate<String> r = Predicates.openClosed("a", "b");
+    NamedRange<String> r = Predicates.openClosed("a", "b");
     Assert.assertEquals(r, fp.project(r));
     Assert.assertEquals(r, fp.projectStrict(r));
   }

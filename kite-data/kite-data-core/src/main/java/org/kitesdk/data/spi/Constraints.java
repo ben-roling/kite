@@ -37,7 +37,7 @@ import org.kitesdk.data.DatasetException;
 import org.kitesdk.data.DatasetIOException;
 import org.kitesdk.data.PartitionStrategy;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 import org.kitesdk.data.spi.partition.CalendarFieldPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -382,7 +382,7 @@ public class Constraints implements Serializable{
   public Constraints toBefore(String name, Comparable value) {
     SchemaUtil.checkTypeConsistency(schema, name, value);
     checkContained(name, value);
-    NamedRangePredicate added = Predicates.lessThan(value);
+    NamedRange added = Predicates.lessThan(value);
     if (constraints.containsKey(name)) {
       return new Constraints(schema, constraints, name,
           and(constraints.get(name), added));
@@ -487,9 +487,9 @@ public class Constraints implements Serializable{
 
   @SuppressWarnings("unchecked")
   private static NamedPredicate and(NamedPredicate previous, NamedPredicate additional) {
-    if (previous instanceof NamedRangePredicate) {
+    if (previous instanceof NamedRange) {
       // return the intersection
-      return ((NamedRangePredicate) previous).intersection((NamedRangePredicate) additional);
+      return ((NamedRange) previous).intersection((NamedRange) additional);
     } else if (previous instanceof Predicates.NamedIn) {
       // filter the set using the range
       return ((Predicates.NamedIn) previous).filter(additional);

@@ -28,7 +28,7 @@ import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
     value="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE",
@@ -73,11 +73,11 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<Integer>) predicate).transform(this);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+    } else if (predicate instanceof Predicates.NamedRange) {
       // must use a closed range:
       //   if this( 5 ) => 10 then this( 6 ) => 10, so 10 must be included
       return Predicates.transformClosed(
-          Predicates.adjustClosed((NamedRangePredicate<Integer>) predicate,
+          Predicates.adjustClosed((NamedRange<Integer>) predicate,
               DiscreteDomains.integers()), this);
     } else {
       return null;
@@ -111,9 +111,9 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
         return Predicates.in(possibleValues);
       }
 
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
-      NamedRangePredicate<Integer> adjusted = Predicates.adjustClosed(
-          (NamedRangePredicate<Integer>) predicate, DiscreteDomains.integers());
+    } else if (predicate instanceof Predicates.NamedRange) {
+      NamedRange<Integer> adjusted = Predicates.adjustClosed(
+          (NamedRange<Integer>) predicate, DiscreteDomains.integers());
       Range<Integer> adjustedRange = adjusted.getPredicate();
       if (adjustedRange.hasLowerBound()) {
         int lower = adjustedRange.lowerEndpoint();

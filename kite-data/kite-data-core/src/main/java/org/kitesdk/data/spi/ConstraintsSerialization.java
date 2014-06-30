@@ -40,7 +40,7 @@ import java.util.Set;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 
 /**
  * Serialization Utils for serializing {@link Constraints}
@@ -99,8 +99,8 @@ class ConstraintsSerialization {
     out.writeUTF(predicate.getClass().getName());
     if (predicate instanceof Predicates.NamedIn) {
       writeInPredicate(fieldSchema, (Predicates.NamedIn) predicate, out);
-    } else if (predicate instanceof NamedRangePredicate) {
-      writeRangePredicate(fieldSchema, (NamedRangePredicate) predicate, out);
+    } else if (predicate instanceof NamedRange) {
+      writeRangePredicate(fieldSchema, (NamedRange) predicate, out);
     }
   }
 
@@ -115,7 +115,7 @@ class ConstraintsSerialization {
     String className = in.readUTF();
     if (className.equals(Predicates.NamedIn.class.getName())) {
       return readInPredicate(fieldSchema, in);
-    } else if (className.equals(Predicates.NamedRangePredicate.class.getName())) {
+    } else if (className.equals(Predicates.NamedRange.class.getName())) {
       return readRangePredicate(fieldSchema, in);
     } else if (className.equals(Predicates.Exists.class.getName())) {
       return Predicates.exists();
@@ -150,7 +150,7 @@ class ConstraintsSerialization {
   /**
    * Serializes an {@link Range} into the specified {@code out} stream.
    */
-  private static void writeRangePredicate(Schema fieldSchema, NamedRangePredicate predicate, ObjectOutputStream out) throws IOException{
+  private static void writeRangePredicate(Schema fieldSchema, NamedRange predicate, ObjectOutputStream out) throws IOException{
     Range range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       //write out that there is a lower endpoint and the value.
@@ -177,8 +177,8 @@ class ConstraintsSerialization {
    * Deserializes an {@link Range} from the specified {@code in} stream.
    */
   @SuppressWarnings("unchecked")
-  private static NamedRangePredicate readRangePredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
-    NamedRangePredicate range = null;
+  private static NamedRange readRangePredicate(Schema fieldSchema, ObjectInputStream in) throws IOException{
+    NamedRange range = null;
 
     //read in boolean indicating if there is a lower bound
     if (in.readBoolean()) {
@@ -192,7 +192,7 @@ class ConstraintsSerialization {
     }
     //read in boolean indicating if there is an upper bound
     if (in.readBoolean()) {
-      NamedRangePredicate upperRange = null;
+      NamedRange upperRange = null;
       BoundType upperType = in.readBoolean() ? BoundType.OPEN : BoundType.CLOSED;
       Comparable upperBound = (Comparable) readValue(fieldSchema, in);
       if (upperType.equals(BoundType.OPEN)) {

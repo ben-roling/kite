@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
     value="SE_COMPARATOR_SHOULD_BE_SERIALIZABLE",
@@ -48,10 +48,10 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<Long>) predicate).transform(this);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+    } else if (predicate instanceof Predicates.NamedRange) {
       return Predicates.transformClosed(
           Predicates.adjustClosed(
-              (NamedRangePredicate<Long>) predicate, DiscreteDomains.longs()),
+              (NamedRange<Long>) predicate, DiscreteDomains.longs()),
           this);
     } else {
       return null;
@@ -66,11 +66,11 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
       // not enough information to make a judgement on behalf of the
       // original predicate. the year may match when month does not
       return null;
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+    } else if (predicate instanceof Predicates.NamedRange) {
       //return Predicates.transformClosedConservative(
       //    (Range<Long>) predicate, this, DiscreteDomains.integers());
-      NamedRangePredicate<Long> adjusted = Predicates.adjustClosed(
-          (NamedRangePredicate<Long>) predicate, DiscreteDomains.longs());
+      NamedRange<Long> adjusted = Predicates.adjustClosed(
+          (NamedRange<Long>) predicate, DiscreteDomains.longs());
       Range<Long> adjustedRange = adjusted.getPredicate();
       if (adjustedRange.hasLowerBound()) {
         long lower = adjustedRange.lowerEndpoint();

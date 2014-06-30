@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 import com.google.common.base.Objects;
 import org.kitesdk.data.spi.Predicates;
 
@@ -77,11 +77,11 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<String>) predicate).transform(this);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+    } else if (predicate instanceof Predicates.NamedRange) {
       // must use a closed range:
       //   if this( abc ) => b then this( acc ) => b, so b must be included
       return Predicates.in(
-          Predicates.transformClosed((NamedRangePredicate<String>) predicate, this)
+          Predicates.transformClosed((NamedRange<String>) predicate, this)
               .asSet(domain()));
     } else {
       return null;
@@ -95,8 +95,8 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
     } else if (predicate instanceof Predicates.NamedIn) {
       // not possible to check all inputs to the predicate
       return null;
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
-      Range<String> transformed = transformClosed((NamedRangePredicate<String>) predicate);
+    } else if (predicate instanceof Predicates.NamedRange) {
+      Range<String> transformed = transformClosed((NamedRange<String>) predicate);
       if (transformed != null) {
         return Predicates.in(transformed.asSet(domain()));
       }
@@ -151,7 +151,7 @@ public class RangeFieldPartitioner extends FieldPartitioner<String, String> {
    * @param range a Range of Strings
    * @return a Range of upper-bound Strings
    */
-  private Range<String> transformClosed(NamedRangePredicate<String> predicate) {
+  private Range<String> transformClosed(NamedRange<String> predicate) {
     Range<String> range = predicate.getPredicate();
     if (range.hasLowerBound()) {
       String lower = range.lowerEndpoint();

@@ -27,7 +27,7 @@ import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
 import org.kitesdk.data.spi.Predicates.NamedPredicate;
-import org.kitesdk.data.spi.Predicates.NamedRangePredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
 
 /**
  * A FieldPartitioner that formats a timestamp (long) in milliseconds since
@@ -97,12 +97,12 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
       return ((Predicates.NamedIn<Long>) predicate).transform(this);
-    } else if (predicate instanceof Predicates.NamedRangePredicate) {
+    } else if (predicate instanceof Predicates.NamedRange) {
       // FIXME: This project is only true in some cases
       // true for yyyy-MM-dd, but not dd-MM-yyyy
       // this is lossy, so the final range must be closed:
       //   (2013-10-4 20:17:55, ...] => [2013-10-4, ...]
-      return Predicates.transformClosed((NamedRangePredicate<Long>) predicate, this);
+      return Predicates.transformClosed((NamedRange<Long>) predicate, this);
     } else {
       return null;
     }
