@@ -26,7 +26,10 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Ranges;
+import com.google.common.collect.Sets;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.StringTokenizer;
 import javax.annotation.Nullable;
 
 public abstract class Predicates {
@@ -137,6 +140,12 @@ public abstract class Predicates {
     return new NamedRange<T>(Ranges.singleton(value));
   }
   
+  private static <T extends Comparable<T>> NamedRange<T> range(T lowerBound,
+      BoundType lowerBoundType, T upperBound, BoundType upperBoundType) {
+    return new NamedRange<T>(Ranges.range(lowerBound, lowerBoundType,
+        upperBound, upperBoundType));
+  }
+  
   @SuppressWarnings("unchecked")
   public static <T> Exists<T> exists() {
     return (Exists<T>) Exists.INSTANCE;
@@ -227,6 +236,7 @@ public abstract class Predicates {
     
     public NamedIn(T... values) {
       set = ImmutableSet.copyOf(values);
+      Preconditions.checkArgument(set.size() > 0, "No values to match");
     }
          
     @Override
@@ -286,6 +296,87 @@ public abstract class Predicates {
     @Override
     public int hashCode() {
       return Objects.hashCode(set);
+    }
+  }
+  
+  public static <T extends Comparable<T>> NamedPredicate<T> fromName(String name, Class<T> clazz) {
+    Preconditions.checkNotNull(name, "name:null");
+    if (name.startsWith("in(")) {
+      return nameAsIn(name, clazz);
+    } else if ("exists()".equals(name)) {
+      return exists();
+    } else if ((name.startsWith("[") || name.startsWith("("))
+        && (name.endsWith("]") || name.endsWith(")"))) {
+      return nameAsRange(name, clazz);
+    }
+    
+    // must be a single value for an equality criteria
+    return in(Conversions.convert(name, clazz));
+  }
+
+  private static <T extends Comparable<T>> NamedPredicate<T> nameAsIn(
+      String name, Class<T> clazz) {
+    if (!name.endsWith(")")) {
+      throw new IllegalArgumentException("Unsupported name: " + name);
+    }
+    StringTokenizer tokenizer = new StringTokenizer(name.substring(3, name.length()-1), ",");
+    HashSet<T> elements = Sets.newHashSet();
+    while(tokenizer.hasMoreElements()) {
+      elements.add(Conversions.convert(tokenizer.nextElement(), clazz));
+    }
+    return in(elements);
+  }
+
+  private static <T extends Comparable<T>> NamedPredicate<T> nameAsRange(
+      String name, Class<T> clazz) {
+    String [] parts = name.split(",");
+    if (parts.length != 2) {
+      throw new IllegalArgumentException("Unsupported name: " + name);
+    }
+    if (parts[0].length() < 2 || parts[1].length() < 2) {
+      throw new IllegalArgumentException("Unsupported name: " + name);
+    }
+    String lowerBound = parts[0];
+    BoundType lowerBoundType = null;
+    if (lowerBound.startsWith("(")) {
+      lowerBoundType = BoundType.OPEN;
+    }
+    else if (lowerBound.startsWith("[")) {
+      lowerBoundType = BoundType.CLOSED;
+    }
+    lowerBound = lowerBound.substring(1);
+    
+    String upperBound = parts[1];
+    BoundType upperBoundType = null;
+    if (upperBound.endsWith(")")) {
+      upperBoundType = BoundType.OPEN;
+    }
+    else if (upperBound.endsWith("]")) {
+      upperBoundType = BoundType.CLOSED;
+    }
+    upperBound = upperBound.substring(0, upperBound.length()-1);
+    
+    if ("-inf".equals(lowerBound)) {
+      if (upperBoundType == BoundType.CLOSED) {
+        return atMost(Conversions.convert(upperBound, clazz));
+      }
+      else if (upperBoundType == BoundType.OPEN) {
+        return lessThan(Conversions.convert(upperBound, clazz));
+      }
+      else {
+        throw new IllegalArgumentException("Unsupported name: " + name);
+      }
+    } else if ("inf".equals(upperBound)) {
+      if (lowerBoundType == BoundType.CLOSED) {
+        return atLeast(Conversions.convert(lowerBound, clazz));
+      } else if (lowerBoundType == BoundType.OPEN) {
+        return greaterThan(Conversions.convert(lowerBound, clazz));
+      } else {
+        throw new IllegalArgumentException("Unsupported name: " + name);
+      }
+    } else {
+      return range(Conversions.convert(lowerBound, clazz), lowerBoundType,
+          Conversions.convert(upperBound, clazz), upperBoundType);
     }
   }
 }
