@@ -15,13 +15,13 @@
  */
 package org.kitesdk.data.spi.partition;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.DiscreteDomains;
 import com.google.common.collect.Range;
 import java.util.Calendar;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.Predicates;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
@@ -40,7 +40,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public NamedPredicate<Integer> project(NamedPredicate<Long> predicate) {
+  public Predicate<Integer> project(Predicate<Long> predicate) {
     // year is the only time field that can be projected
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
@@ -57,7 +57,7 @@ public class YearFieldPartitioner extends CalendarFieldPartitioner {
   }
 
   @Override
-  public NamedPredicate<Integer> projectStrict(NamedPredicate<Long> predicate) {
+  public Predicate<Integer> projectStrict(Predicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {

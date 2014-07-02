@@ -26,7 +26,6 @@ import java.util.TimeZone;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.kitesdk.data.spi.Predicates.NamedRange;
 
 /**
@@ -92,7 +91,7 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
   }
 
   @Override
-  public NamedPredicate<String> project(NamedPredicate<Long> predicate) {
+  public Predicate<String> project(Predicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -109,7 +108,7 @@ public class DateFormatPartitioner extends FieldPartitioner<Long, String> {
   }
 
   @Override
-  public NamedPredicate<String> projectStrict(NamedPredicate<Long> predicate) {
+  public Predicate<String> projectStrict(Predicate<Long> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else {

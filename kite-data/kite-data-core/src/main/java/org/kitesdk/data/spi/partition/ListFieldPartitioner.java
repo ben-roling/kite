@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
@@ -72,7 +71,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public NamedPredicate<Integer> project(NamedPredicate<S> predicate) {
+  public Predicate<Integer> project(Predicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -103,7 +102,7 @@ public class ListFieldPartitioner<S> extends FieldPartitioner<S, Integer> {
   }
 
   @Override
-  public NamedPredicate<Integer> projectStrict(NamedPredicate<S> predicate) {
+  public Predicate<Integer> projectStrict(Predicate<S> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn ||

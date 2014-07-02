@@ -20,7 +20,6 @@ import com.google.common.base.Predicate;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import com.google.common.base.Objects;
 import org.kitesdk.data.spi.Predicates;
 
@@ -56,7 +55,7 @@ public class HashFieldPartitioner extends FieldPartitioner<Object, Integer> {
   }
 
   @Override
-  public NamedPredicate<Integer> project(NamedPredicate<Object> predicate) {
+  public Predicate<Integer> project(Predicate<Object> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -68,7 +67,7 @@ public class HashFieldPartitioner extends FieldPartitioner<Object, Integer> {
   }
 
   @Override
-  public NamedPredicate<Integer> projectStrict(NamedPredicate<Object> predicate) {
+  public Predicate<Integer> projectStrict(Predicate<Object> predicate) {
     return null;
   }
 

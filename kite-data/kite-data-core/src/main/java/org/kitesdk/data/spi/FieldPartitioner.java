@@ -20,7 +20,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import java.util.Comparator;
 import javax.annotation.concurrent.Immutable;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,7 +204,7 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    *
    * @since 0.11.0
    */
-  public abstract NamedPredicate<T> project(NamedPredicate<S> predicate);
+  public abstract Predicate<T> project(Predicate<S> predicate);
 
   /**
    * Projects a source-data constraint {@link Predicate} into the image of the
@@ -222,5 +221,5 @@ public abstract class FieldPartitioner<S, T> implements Function<S, T>, Comparat
    *         null if the Predicate cannot be projected.
    * @since 0.12.0
    */
-  public abstract NamedPredicate<T> projectStrict(NamedPredicate<S> predicate);
+  public abstract Predicate<T> projectStrict(Predicate<S> predicate);
 }

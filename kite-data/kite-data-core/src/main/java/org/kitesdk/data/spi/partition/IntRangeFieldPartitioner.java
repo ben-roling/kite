@@ -18,6 +18,7 @@ package org.kitesdk.data.spi.partition;
 import com.google.common.collect.DiscreteDomains;
 import com.google.common.collect.Range;
 import com.google.common.base.Objects;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import java.util.Set;
@@ -25,7 +26,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.kitesdk.data.spi.FieldPartitioner;
 import org.kitesdk.data.spi.Predicates;
-import org.kitesdk.data.spi.Predicates.NamedPredicate;
 import org.kitesdk.data.spi.Predicates.NamedRange;
 
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
@@ -66,7 +66,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
   }
 
   @Override
-  public NamedPredicate<Integer> project(NamedPredicate<Integer> predicate) {
+  public Predicate<Integer> project(Predicate<Integer> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
     } else if (predicate instanceof Predicates.NamedIn) {
@@ -83,7 +83,7 @@ public class IntRangeFieldPartitioner extends FieldPartitioner<Integer, Integer>
   }
 
   @Override
-  public NamedPredicate<Integer> projectStrict(NamedPredicate<Integer> predicate) {
+  public Predicate<Integer> projectStrict(Predicate<Integer> predicate) {
     if (predicate instanceof Predicates.Exists) {
       return Predicates.exists();
 
