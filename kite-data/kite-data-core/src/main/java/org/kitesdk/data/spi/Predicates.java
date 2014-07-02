@@ -387,6 +387,7 @@ public abstract class Predicates {
     }
   }
   
+  @SuppressWarnings("unchecked")
   public static <T extends Comparable<T>> NamedPredicate<T> fromName(String name, Class<T> clazz) {
     Preconditions.checkNotNull(name, "name:null");
     if (name.startsWith("in(") && name.endsWith(")")) {
