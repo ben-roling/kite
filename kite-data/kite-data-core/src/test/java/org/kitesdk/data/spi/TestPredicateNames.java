@@ -1,52 +1,73 @@
 package org.kitesdk.data.spi;
 
+import java.util.Map;
+import java.util.Map.Entry;
 import junit.framework.Assert;
 import org.junit.Test;
+import org.kitesdk.data.spi.Predicates.NamedPredicate;
+import org.kitesdk.data.spi.Predicates.NamedRange;
+import com.google.common.collect.Maps;
 
 public class TestPredicateNames {
   @Test
   public void testRanges() {
     // TODO - (-inf, inf) ?
     
-    Assert.assertEquals("[2,inf)", Predicates.atLeast(2).getName());
-    Assert.assertEquals(Predicates.atLeast(2), Predicates.fromName("[2,inf)", Integer.class));
+    Map<NamedPredicate, String> integerRanges = Maps.newHashMap();
+    integerRanges.put(Predicates.atLeast(2), "[2,inf)");
+    integerRanges.put(Predicates.greaterThan(2), "(2,inf)");
+    integerRanges.put(Predicates.atMost(2), "(-inf,2]");
+    integerRanges.put(Predicates.lessThan(2), "(-inf,2)");
+    integerRanges.put(Predicates.closed(2, 10), "[2,10]");
+    integerRanges.put(Predicates.open(2, 10), "(2,10)");
+    integerRanges.put(Predicates.openClosed(2, 10), "(2,10]");
+    integerRanges.put(Predicates.closedOpen(2, 10), "[2,10)");
     
-    Assert.assertEquals("(2,inf)", Predicates.greaterThan(2).getName());
-    Assert.assertEquals(Predicates.greaterThan(2), Predicates.fromName("(2,inf)", Integer.class));
+    assertNames(integerRanges, Integer.class);
     
-    Assert.assertEquals("(-inf,2]", Predicates.atMost(2).getName());
-    Assert.assertEquals(Predicates.atMost(2), Predicates.fromName("(-inf,2]", Integer.class));
+    Map<NamedPredicate, String> stringRanges = Maps.newHashMap();
+    stringRanges.put(Predicates.atLeast("Smith, John"), "[Smith%2C John,inf)");
+    stringRanges.put(Predicates.greaterThan("Smith, John"), "(Smith%2C John,inf)");
+    stringRanges.put(Predicates.atMost("Smith, John"), "(-inf,Smith%2C John]");
+    stringRanges.put(Predicates.lessThan("Smith, John"), "(-inf,Smith%2C John)");
+    stringRanges.put(Predicates.closed("Smith, John", "Tanner, Ted"), "[Smith%2C John,Tanner%2C Ted]");
+    stringRanges.put(Predicates.open("Smith, John", "Tanner, Ted"), "(Smith%2C John,Tanner%2C Ted)");
+    stringRanges.put(Predicates.openClosed("Smith, John", "Tanner, Ted"), "(Smith%2C John,Tanner%2C Ted]");
+    stringRanges.put(Predicates.closedOpen("Smith, John", "Tanner, Ted"), "[Smith%2C John,Tanner%2C Ted)");
     
-    Assert.assertEquals("(-inf,2)", Predicates.lessThan(2).getName());
-    Assert.assertEquals(Predicates.lessThan(2), Predicates.fromName("(-inf,2)", Integer.class));
-    
-    Assert.assertEquals("[2,10]", Predicates.closed(2, 10).getName());
-    Assert.assertEquals(Predicates.closed(2, 10), Predicates.fromName("[2,10]", Integer.class));
-    
-    Assert.assertEquals("(2,10)", Predicates.open(2, 10).getName());
-    Assert.assertEquals(Predicates.open(2, 10), Predicates.fromName("(2,10)", Integer.class));
-    
-    Assert.assertEquals("(2,10]", Predicates.openClosed(2, 10).getName());
-    Assert.assertEquals(Predicates.openClosed(2, 10), Predicates.fromName("(2,10]", Integer.class));
-    
-    Assert.assertEquals("[2,10)", Predicates.closedOpen(2, 10).getName());
-    Assert.assertEquals(Predicates.closedOpen(2, 10), Predicates.fromName("[2,10)", Integer.class));
+    assertNames(stringRanges, String.class);
     
     Assert.assertEquals("2", Predicates.singleton(2).getName());
+    Assert.assertEquals("Smith, John", Predicates.singleton("Smith, John").getName());
   }
   
   @Test
   public void testIn() {
-    Assert.assertEquals("in(2,10)", Predicates.in(2, 10).getName());
-    Assert.assertEquals(Predicates.in(2, 10), Predicates.fromName("in(2,10)", Integer.class));
+    Map<NamedPredicate, String> integerTests = Maps.newHashMap();
+    integerTests.put(Predicates.in(2, 10), "in(2,10)");
+    integerTests.put(Predicates.in(2), "2");
     
-    Assert.assertEquals("2", Predicates.in(2).getName());
-    Assert.assertEquals(Predicates.in(2), Predicates.fromName("2", Integer.class));
+    assertNames(integerTests, Integer.class);
+    
+    Map<NamedPredicate, String> stringTests = Maps.newHashMap();
+    integerTests.put(Predicates.in("Smith, John", "Tanner, Ted"), "in(Smith%2C John,Tanner%2C Ted)");
+    integerTests.put(Predicates.in("Smith, John"), "Smith, John");
+    
+    assertNames(stringTests, String.class);
   }
-  
+
   @Test
   public void testExists() {
     Assert.assertEquals("exists()", Predicates.exists().getName());
     Assert.assertEquals(Predicates.exists(), Predicates.fromName("exists()", Integer.class));
+  }
+  
+  private static void assertNames(Map<NamedPredicate, String> expectedNameByPredicate, Class clazz) {
+    for (Entry<NamedPredicate, String> entry : expectedNameByPredicate.entrySet()) {
+      NamedPredicate predicate = entry.getKey();
+      String expectedName = entry.getValue();
+      Assert.assertEquals(expectedName, predicate.getName());
+      Assert.assertEquals(predicate, Predicates.fromName(expectedName, clazz));
+    }
   }
 }

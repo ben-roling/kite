@@ -30,10 +30,15 @@ import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 public abstract class Predicates {
+  private static final String ESCAPED_COMMA = "%2C";
+  private static final String ESCAPED_COMMA_PATTERN = Pattern.quote(ESCAPED_COMMA);
+  
   public static abstract class NamedPredicate<T> implements Predicate<T> {
+    
     public abstract String getName();
     
     public String toString() {
@@ -42,6 +47,7 @@ public abstract class Predicates {
   }
   
   public static class NamedRange<T extends Comparable<T>> extends NamedPredicate<T> {
+    
     private final Range<T> range;
     
     public NamedRange(Range<T> range) {
@@ -56,6 +62,14 @@ public abstract class Predicates {
       return new NamedRange<T>(getRange().intersection(other.getRange()));
     }
     
+    private static String escapedValue(String value) {
+      return value.replaceAll(",", ESCAPED_COMMA);
+    }
+    
+    private static String unescapedValue(String value) {
+      return value.replaceAll(ESCAPED_COMMA_PATTERN, ",");
+    }
+    
     @Override
     public String getName() {
       if (range.hasLowerBound() && range.hasUpperBound()
@@ -65,20 +79,73 @@ public abstract class Predicates {
       StringBuffer buffer = new StringBuffer();
       if (range.hasLowerBound()) {
         buffer.append(range.lowerBoundType() == BoundType.CLOSED ? "[" : "(");
-        buffer.append(range.lowerEndpoint());
+        buffer.append(escapedValue(Conversions.makeString(range.lowerEndpoint())));
       }
       else {
         buffer.append("(-inf");
       }
       buffer.append(",");
       if (range.hasUpperBound()) {
-        buffer.append(range.upperEndpoint());
+        buffer.append(escapedValue(Conversions.makeString(range.upperEndpoint())));
         buffer.append(range.upperBoundType() == BoundType.CLOSED ? "]" : ")");
       }
       else {
         buffer.append("inf)");
       } 
       return buffer.toString();
+    }
+    
+    private static <T extends Comparable<T>> NamedPredicate<T> fromName(
+        String name, Class<T> clazz) {
+      String [] parts = name.split(",");
+      if (parts.length != 2) {
+        throw new IllegalArgumentException("Unsupported name: " + name);
+      }
+      if (parts[0].length() < 2 || parts[1].length() < 2) {
+        throw new IllegalArgumentException("Unsupported name: " + name);
+      }
+      String lowerBound = parts[0];
+      BoundType lowerBoundType = null;
+      if (lowerBound.startsWith("(")) {
+        lowerBoundType = BoundType.OPEN;
+      }
+      else if (lowerBound.startsWith("[")) {
+        lowerBoundType = BoundType.CLOSED;
+      }
+      lowerBound = lowerBound.substring(1);
+      
+      String upperBound = parts[1];
+      BoundType upperBoundType = null;
+      if (upperBound.endsWith(")")) {
+        upperBoundType = BoundType.OPEN;
+      }
+      else if (upperBound.endsWith("]")) {
+        upperBoundType = BoundType.CLOSED;
+      }
+      upperBound = upperBound.substring(0, upperBound.length()-1);
+      
+      if ("-inf".equals(lowerBound)) {
+        if (upperBoundType == BoundType.CLOSED) {
+          return atMost(Conversions.convert(unescapedValue(upperBound), clazz));
+        }
+        else if (upperBoundType == BoundType.OPEN) {
+          return lessThan(Conversions.convert(unescapedValue(upperBound), clazz));
+        }
+        else {
+          throw new IllegalArgumentException("Unsupported name: " + name);
+        }
+      } else if ("inf".equals(upperBound)) {
+        if (lowerBoundType == BoundType.CLOSED) {
+          return atLeast(Conversions.convert(unescapedValue(lowerBound), clazz));
+        } else if (lowerBoundType == BoundType.OPEN) {
+          return greaterThan(Conversions.convert(unescapedValue(lowerBound), clazz));
+        } else {
+          throw new IllegalArgumentException("Unsupported name: " + name);
+        }
+      } else {
+        return range(Conversions.convert(unescapedValue(lowerBound), clazz), lowerBoundType,
+            Conversions.convert(unescapedValue(upperBound), clazz), upperBoundType);
+      }
     }
     
     @Override
@@ -267,14 +334,35 @@ public abstract class Predicates {
         if (numValues > 0) {
           buffer.append(",");
         }
-        buffer.append(Conversions.makeString(value));
+        buffer.append(escapedValue(Conversions.makeString(value)));
         numValues++;
       }
       buffer.append(")");
       if (numValues == 1) {
-        return Conversions.makeString(Iterables.getOnlyElement(set));
+        return escapedValue(Conversions.makeString(Iterables.getOnlyElement(set)));
       }
       return buffer.toString();
+    }
+    
+    private static String escapedValue(String value) {
+      return value.replaceAll(",", ESCAPED_COMMA);
+    }
+    
+    private static String unescapedValue(String value) {
+      return value.replaceAll(ESCAPED_COMMA_PATTERN, ",");
+    }
+    
+    static <T extends Comparable<T>> NamedPredicate<T> fromName(
+        String name, Class<T> clazz) {
+      if (!name.endsWith(")")) {
+        throw new IllegalArgumentException("Unsupported name: " + name);
+      }
+      StringTokenizer tokenizer = new StringTokenizer(name.substring(3, name.length()-1), ",");
+      HashSet<T> elements = Sets.newHashSet();
+      while(tokenizer.hasMoreElements()) {
+        elements.add(Conversions.convert(unescapedValue(tokenizer.nextToken()), clazz));
+      }
+      return in(elements);
     }
 
     Set<T> getSet() {
@@ -301,82 +389,16 @@ public abstract class Predicates {
   
   public static <T extends Comparable<T>> NamedPredicate<T> fromName(String name, Class<T> clazz) {
     Preconditions.checkNotNull(name, "name:null");
-    if (name.startsWith("in(")) {
-      return nameAsIn(name, clazz);
+    if (name.startsWith("in(") && name.endsWith(")")) {
+      return NamedIn.fromName(name, clazz);
     } else if ("exists()".equals(name)) {
       return exists();
     } else if ((name.startsWith("[") || name.startsWith("("))
         && (name.endsWith("]") || name.endsWith(")"))) {
-      return nameAsRange(name, clazz);
+      return NamedRange.fromName(name, clazz);
     }
     
     // must be a single value for an equality criteria
     return in(Conversions.convert(name, clazz));
-  }
-
-  private static <T extends Comparable<T>> NamedPredicate<T> nameAsIn(
-      String name, Class<T> clazz) {
-    if (!name.endsWith(")")) {
-      throw new IllegalArgumentException("Unsupported name: " + name);
-    }
-    StringTokenizer tokenizer = new StringTokenizer(name.substring(3, name.length()-1), ",");
-    HashSet<T> elements = Sets.newHashSet();
-    while(tokenizer.hasMoreElements()) {
-      elements.add(Conversions.convert(tokenizer.nextElement(), clazz));
-    }
-    return in(elements);
-  }
-
-  private static <T extends Comparable<T>> NamedPredicate<T> nameAsRange(
-      String name, Class<T> clazz) {
-    String [] parts = name.split(",");
-    if (parts.length != 2) {
-      throw new IllegalArgumentException("Unsupported name: " + name);
-    }
-    if (parts[0].length() < 2 || parts[1].length() < 2) {
-      throw new IllegalArgumentException("Unsupported name: " + name);
-    }
-    String lowerBound = parts[0];
-    BoundType lowerBoundType = null;
-    if (lowerBound.startsWith("(")) {
-      lowerBoundType = BoundType.OPEN;
-    }
-    else if (lowerBound.startsWith("[")) {
-      lowerBoundType = BoundType.CLOSED;
-    }
-    lowerBound = lowerBound.substring(1);
-    
-    String upperBound = parts[1];
-    BoundType upperBoundType = null;
-    if (upperBound.endsWith(")")) {
-      upperBoundType = BoundType.OPEN;
-    }
-    else if (upperBound.endsWith("]")) {
-      upperBoundType = BoundType.CLOSED;
-    }
-    upperBound = upperBound.substring(0, upperBound.length()-1);
-    
-    if ("-inf".equals(lowerBound)) {
-      if (upperBoundType == BoundType.CLOSED) {
-        return atMost(Conversions.convert(upperBound, clazz));
-      }
-      else if (upperBoundType == BoundType.OPEN) {
-        return lessThan(Conversions.convert(upperBound, clazz));
-      }
-      else {
-        throw new IllegalArgumentException("Unsupported name: " + name);
-      }
-    } else if ("inf".equals(upperBound)) {
-      if (lowerBoundType == BoundType.CLOSED) {
-        return atLeast(Conversions.convert(lowerBound, clazz));
-      } else if (lowerBoundType == BoundType.OPEN) {
-        return greaterThan(Conversions.convert(lowerBound, clazz));
-      } else {
-        throw new IllegalArgumentException("Unsupported name: " + name);
-      }
-    } else {
-      return range(Conversions.convert(lowerBound, clazz), lowerBoundType,
-          Conversions.convert(upperBound, clazz), upperBoundType);
-    }
   }
 }
